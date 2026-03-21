@@ -20,6 +20,11 @@ namespace YxllowLoader
             this.InitializeComponent();
         }
 
+        private void Page_Loaded(object sender, RoutedEventArgs e)
+        {
+            PageOpenAnim.Begin();
+        }
+
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
@@ -114,11 +119,13 @@ namespace YxllowLoader
                 return;
             }
 
-            SetInjectLoading(true);
+            SetInjectLoading(true, "Connecting to process...");
+            await Task.Delay(50);
 
+            SetInjectLoading(true, "Injecting SDK...");
             bool success = await Task.Run(() => InjectInternal(procs[0].Id));
 
-            SetInjectLoading(false);
+            SetInjectLoading(false, "");
 
             if (success)
             {
@@ -135,11 +142,16 @@ namespace YxllowLoader
             }
         }
 
-        private void SetInjectLoading(bool loading)
+        private void SetInjectLoading(bool loading, string statusText = "")
         {
             InjectBtnContent.Visibility = loading ? Visibility.Collapsed : Visibility.Visible;
             InjectSpinner.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
             InjectBtn.IsEnabled = !loading;
+
+            // Show or hide the full-screen overlay
+            InjectOverlay.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
+            if (loading && !string.IsNullOrEmpty(statusText))
+                OverlayStatus.Text = statusText;
         }
 
         // ── DLL Injection (LoadLibrary method) ─────────────────────────

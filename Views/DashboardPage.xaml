@@ -2,9 +2,40 @@
     x:Class="YxllowLoader.DashboardPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Background="{StaticResource BrandBgBrush}">
+    Background="{StaticResource BrandBgBrush}"
+    Loaded="Page_Loaded">
 
-    <Grid>
+    <Page.Resources>
+        <!-- Opening animation: fade in + gentle scale up -->
+        <Storyboard x:Name="PageOpenAnim">
+            <DoubleAnimation Storyboard.TargetName="PageRoot"
+                             Storyboard.TargetProperty="Opacity"
+                             From="0" To="1" Duration="0:0:0.35">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="PageRootTransform"
+                             Storyboard.TargetProperty="ScaleX"
+                             From="0.97" To="1" Duration="0:0:0.35">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="PageRootTransform"
+                             Storyboard.TargetProperty="ScaleY"
+                             From="0.97" To="1" Duration="0:0:0.35">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+    </Page.Resources>
+
+    <Grid x:Name="PageRoot" RenderTransformOrigin="0.5,0.5">
+        <Grid.RenderTransform>
+            <CompositeTransform x:Name="PageRootTransform"/>
+        </Grid.RenderTransform>
 
         <!-- ── Gradient background ─────────────────────────────────────── -->
 
@@ -33,109 +64,12 @@
         <!-- ── Main layout ─────────────────────────────────────────────── -->
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>    <!-- Content -->
+                <RowDefinition Height="Auto"/> <!-- Bottom nav bar -->
             </Grid.RowDefinitions>
 
-            <!-- ── Top navigation bar ──────────────────────────────────── -->
-            <Border Grid.Row="0"
-                    BorderBrush="{StaticResource BrandBorderBrush}"
-                    BorderThickness="0,0,0,1"
-                    Padding="28,0">
-                <Grid Height="56">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Logo -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal"
-                                VerticalAlignment="Center" Spacing="2">
-                        <TextBlock FontFamily="Segoe UI Variable Display"
-                                   FontWeight="Bold" FontSize="20">
-                            <Run Text="yxllow" Foreground="{StaticResource BrandYellowBrush}"/>
-                            <Run Text=".tech" Foreground="{StaticResource BrandMutedBrush}" FontSize="15"/>
-                        </TextBlock>
-                    </StackPanel>
-
-                    <!-- Nav tabs (center) -->
-                    <StackPanel Grid.Column="1"
-                                Orientation="Horizontal"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Spacing="4">
-
-                        <!-- Inject tab -->
-                        <Button x:Name="TabInjectBtn"
-                                Click="TabInjectBtn_Click"
-                                Background="#1AFFC300"
-                                BorderThickness="0"
-                                CornerRadius="7"
-                                Padding="20,8">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon Glyph="&#xE756;" FontSize="13"
-                                          Foreground="{StaticResource BrandYellowBrush}"/>
-                                <TextBlock x:Name="TabInjectText"
-                                           Text="INJECT"
-                                           Foreground="{StaticResource BrandYellowBrush}"
-                                           FontFamily="Segoe UI Variable Display"
-                                           FontWeight="SemiBold"
-                                           FontSize="12"
-                                           CharacterSpacing="100"
-                                           VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-
-                        <!-- Account tab -->
-                        <Button x:Name="TabAccountBtn"
-                                Click="TabAccountBtn_Click"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                CornerRadius="7"
-                                Padding="20,8">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon Glyph="&#xE77B;" FontSize="13"
-                                          Foreground="{StaticResource BrandMutedBrush}"/>
-                                <TextBlock x:Name="TabAccountText"
-                                           Text="ACCOUNT"
-                                           Foreground="{StaticResource BrandMutedBrush}"
-                                           FontFamily="Segoe UI Variable Display"
-                                           FontWeight="SemiBold"
-                                           FontSize="12"
-                                           CharacterSpacing="100"
-                                           VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-
-                    </StackPanel>
-
-                    <!-- Right: username + logout -->
-                    <StackPanel Grid.Column="2"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                Spacing="12">
-                        <TextBlock x:Name="NavUsername"
-                                   Text="..."
-                                   Foreground="{StaticResource BrandMutedBrush}"
-                                   FontFamily="Segoe UI Variable Text"
-                                   FontSize="13"
-                                   VerticalAlignment="Center"/>
-                        <Button Background="Transparent"
-                                BorderThickness="0"
-                                Padding="6"
-                                VerticalAlignment="Center"
-                                Click="LogoutBtn_Click"
-                                ToolTipService.ToolTip="Logout">
-                            <FontIcon Glyph="&#xE8BB;" FontSize="14"
-                                      Foreground="{StaticResource BrandMutedBrush}"/>
-                        </Button>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
             <!-- ── Page content ────────────────────────────────────────── -->
-            <Grid Grid.Row="1">
+            <Grid Grid.Row="0">
 
                 <!-- ═══════════════════════════════════════════════════════
                      INJECT VIEW
@@ -378,13 +312,125 @@
                 </Grid>
 
             </Grid>
+
+            <!-- ── Bottom navigation bar ───────────────────────────────── -->
+            <Border Grid.Row="1"
+                    BorderBrush="{StaticResource BrandBorderBrush}"
+                    BorderThickness="0,1,0,0"
+                    Padding="28,0">
+                <Grid Height="56">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>    <!-- Nav tabs (centered) -->
+                        <ColumnDefinition Width="Auto"/> <!-- Username + Logout -->
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Nav tabs (center) -->
+                    <StackPanel Grid.Column="0"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="4">
+
+                        <!-- Inject tab -->
+                        <Button x:Name="TabInjectBtn"
+                                Click="TabInjectBtn_Click"
+                                Background="#1AFFC300"
+                                BorderThickness="0"
+                                CornerRadius="7"
+                                Padding="20,8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE756;" FontSize="13"
+                                          Foreground="{StaticResource BrandYellowBrush}"/>
+                                <TextBlock x:Name="TabInjectText"
+                                           Text="INJECT"
+                                           Foreground="{StaticResource BrandYellowBrush}"
+                                           FontFamily="Segoe UI Variable Display"
+                                           FontWeight="SemiBold"
+                                           FontSize="12"
+                                           CharacterSpacing="100"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Account tab -->
+                        <Button x:Name="TabAccountBtn"
+                                Click="TabAccountBtn_Click"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                CornerRadius="7"
+                                Padding="20,8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE77B;" FontSize="13"
+                                          Foreground="{StaticResource BrandMutedBrush}"/>
+                                <TextBlock x:Name="TabAccountText"
+                                           Text="ACCOUNT"
+                                           Foreground="{StaticResource BrandMutedBrush}"
+                                           FontFamily="Segoe UI Variable Display"
+                                           FontWeight="SemiBold"
+                                           FontSize="12"
+                                           CharacterSpacing="100"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                    </StackPanel>
+
+                    <!-- Right: username + red logout button -->
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Spacing="12">
+                        <TextBlock x:Name="NavUsername"
+                                   Text="..."
+                                   Foreground="{StaticResource BrandMutedBrush}"
+                                   FontFamily="Segoe UI Variable Text"
+                                   FontSize="13"
+                                   VerticalAlignment="Center"/>
+                        <Button Background="#EF4444"
+                                BorderThickness="0"
+                                CornerRadius="6"
+                                Padding="14,7"
+                                VerticalAlignment="Center"
+                                Click="LogoutBtn_Click">
+                            <TextBlock Text="LOG OUT"
+                                       FontFamily="Segoe UI Variable Display"
+                                       FontWeight="SemiBold"
+                                       FontSize="12"
+                                       CharacterSpacing="100"
+                                       Foreground="White"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+        </Grid>
+
+        <!-- ── Inject overlay (covers entire UI during injection) ────────── -->
+        <Grid x:Name="InjectOverlay"
+              Visibility="Collapsed"
+              Background="#BB000000">
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="20">
+                <ProgressRing x:Name="OverlaySpinner"
+                              IsActive="True"
+                              Width="52" Height="52"
+                              Foreground="{StaticResource BrandYellowBrush}"/>
+                <TextBlock x:Name="OverlayStatus"
+                           Text="Injecting..."
+                           HorizontalAlignment="Center"
+                           Foreground="White"
+                           FontFamily="Segoe UI Variable Display"
+                           FontWeight="SemiBold"
+                           FontSize="15"/>
+            </StackPanel>
         </Grid>
 
         <!-- Version watermark -->
         <TextBlock Text="v1.0.0"
                    HorizontalAlignment="Right"
                    VerticalAlignment="Bottom"
-                   Margin="0,0,16,12"
+                   Margin="0,0,16,68"
                    Foreground="{StaticResource BrandMutedBrush}"
                    FontFamily="Segoe UI Variable Text"
                    FontSize="11"
