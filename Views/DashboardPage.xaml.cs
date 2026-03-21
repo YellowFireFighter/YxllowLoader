@@ -111,16 +111,22 @@ namespace YxllowLoader
             if (procs.Length == 0)
                 procs = Process.GetProcessesByName("RocketLeague_UE4");
 
+            // Always show animation so it can be tested without Rocket League open.
+            // TODO: Remove the simulation path once testing is complete.
+            SetInjectLoading(true, "Connecting to process...");
+            await Task.Delay(800);
+
             if (procs.Length == 0)
             {
+                SetInjectLoading(true, "Simulating injection...");
+                await Task.Delay(1200);
+                SetInjectLoading(false, "");
+
                 StatusLabel.Text = "Rocket League not found. Launch the game first.";
                 StatusLabel.Foreground = Application.Current.Resources["BrandDangerBrush"] as Brush;
                 StatusDot.Fill = Application.Current.Resources["BrandDangerBrush"] as Brush;
                 return;
             }
-
-            SetInjectLoading(true, "Connecting to process...");
-            await Task.Delay(50);
 
             SetInjectLoading(true, "Injecting SDK...");
             bool success = await Task.Run(() => InjectInternal(procs[0].Id));
@@ -148,10 +154,20 @@ namespace YxllowLoader
             InjectSpinner.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
             InjectBtn.IsEnabled = !loading;
 
-            // Show or hide the full-screen overlay
-            InjectOverlay.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
-            if (loading && !string.IsNullOrEmpty(statusText))
-                OverlayStatus.Text = statusText;
+            if (loading)
+            {
+                bool wasHidden = InjectOverlay.Visibility == Visibility.Collapsed;
+                InjectOverlay.Visibility = Visibility.Visible;
+                if (!string.IsNullOrEmpty(statusText))
+                    OverlayStatus.Text = statusText;
+                if (wasHidden)
+                    InjectSpinAnim.Begin();
+            }
+            else
+            {
+                InjectOverlay.Visibility = Visibility.Collapsed;
+                InjectSpinAnim.Stop();
+            }
         }
 
         // ── DLL Injection (LoadLibrary method) ─────────────────────────
