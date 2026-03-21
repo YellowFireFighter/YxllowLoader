@@ -17,7 +17,7 @@
                            FontFamily="Segoe UI Variable Display"
                            FontWeight="Bold"
                            FontSize="13"/>
-                <TextBlock Text=" loader"
+                <TextBlock Text=" tech"
                            Foreground="{StaticResource BrandMutedBrush}"
                            FontFamily="Segoe UI Variable Display"
                            FontSize="13"/>

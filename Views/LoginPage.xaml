@@ -85,7 +85,7 @@
                                    CharacterSpacing="150"/>
                         <PasswordBox x:Name="PasswordBox"
                                      Style="{StaticResource YxllowPasswordBoxStyle}"
-                                     PlaceholderText="����������"
+                                     PlaceholderText="your password"
                                      Height="42"/>
                     </StackPanel>
 
