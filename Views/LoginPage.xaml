@@ -5,13 +5,23 @@
     Background="{StaticResource BrandBgBrush}">
 
     <Grid>
-        <!-- Subtle background accent glow -->
-        <Ellipse Width="600" Height="600"
-                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                 Margin="0,-200,0,0">
+        <!-- Gradient background: top-left yellow glow -->
+        <Rectangle HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#28FFC300" Offset="0"/>
+                    <GradientStop Color="#00080808" Offset="0.55"/>
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+
+        <!-- Second radial glow, bottom-right -->
+        <Ellipse Width="700" Height="700"
+                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                 Margin="0,0,-200,-200">
             <Ellipse.Fill>
                 <RadialGradientBrush>
-                    <GradientStop Color="#14FFC300" Offset="0"/>
+                    <GradientStop Color="#18FFC300" Offset="0"/>
                     <GradientStop Color="#00000000" Offset="1"/>
                 </RadialGradientBrush>
             </Ellipse.Fill>
@@ -75,7 +85,7 @@
                                    CharacterSpacing="150"/>
                         <PasswordBox x:Name="PasswordBox"
                                      Style="{StaticResource YxllowPasswordBoxStyle}"
-                                     PlaceholderText="••••••••••"
+                                     PlaceholderText="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"
                                      Height="42"/>
                     </StackPanel>
 

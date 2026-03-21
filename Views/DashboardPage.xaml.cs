@@ -1,14 +1,11 @@
-﻿using Microsoft.UI;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
-using System;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Windows.Storage.Pickers;
 using YxllowLoader.Models;
 
 namespace YxllowLoader
@@ -31,23 +28,19 @@ namespace YxllowLoader
             {
                 _session = session;
                 PopulateUI();
-                Log("Session authenticated.", LogLevel.Info);
-                Log($"Subscription: {session.Plan} — {session.DaysLeft}", LogLevel.Info);
-                Log("Ready to inject.", LogLevel.Ok);
             }
         }
 
         private void PopulateUI()
         {
-            // Sidebar
-            AvatarInitial.Text = _session.Username.Length > 0 ? _session.Username[0].ToString().ToUpper() : "?";
-            SidebarUsername.Text = _session.Username;
-            SidebarPlan.Text = _session.Plan;
+            // Nav bar
+            NavUsername.Text = _session.Username;
 
-            // Header
-            HeaderUsername.Text = _session.Username;
-
-            // Cards
+            // Account view
+            AvatarInitial.Text = _session.Username.Length > 0
+                ? _session.Username[0].ToString().ToUpper()
+                : "?";
+            AccountUsername.Text = _session.Username;
             CardPlan.Text = _session.Plan;
             CardExpiry.Text = _session.ExpiryDisplay;
             CardDaysLeft.Text = _session.DaysLeft;
@@ -64,52 +57,81 @@ namespace YxllowLoader
                 HwidDot.Fill = Application.Current.Resources["BrandDangerBrush"] as Brush;
                 CardHwid.Foreground = Application.Current.Resources["BrandDangerBrush"] as Brush;
             }
-
-            SubtitleText.Text = $"logged in as {_session.Username} · {DateTime.Now:HH:mm}";
         }
 
-        // ── Inject ─────────────────────────────────────────────────────────
+        // ── Tab switching ───────────────────────────────────────────────
+
+        private void TabInjectBtn_Click(object sender, RoutedEventArgs e)
+        {
+            InjectView.Visibility = Visibility.Visible;
+            AccountView.Visibility = Visibility.Collapsed;
+
+            // Active style: inject tab
+            TabInjectBtn.Background = new SolidColorBrush(ColorHelper.FromArgb(0x1A, 0xFF, 0xC3, 0x00));
+            SetTabTextColor(TabInjectText, isActive: true);
+            TabAccountBtn.Background = new SolidColorBrush(ColorHelper.FromArgb(0, 0, 0, 0));
+            SetTabTextColor(TabAccountText, isActive: false);
+        }
+
+        private void TabAccountBtn_Click(object sender, RoutedEventArgs e)
+        {
+            InjectView.Visibility = Visibility.Collapsed;
+            AccountView.Visibility = Visibility.Visible;
+
+            // Active style: account tab
+            TabAccountBtn.Background = new SolidColorBrush(ColorHelper.FromArgb(0x1A, 0xFF, 0xC3, 0x00));
+            SetTabTextColor(TabAccountText, isActive: true);
+            TabInjectBtn.Background = new SolidColorBrush(ColorHelper.FromArgb(0, 0, 0, 0));
+            SetTabTextColor(TabInjectText, isActive: false);
+        }
+
+        private void SetTabTextColor(TextBlock tb, bool isActive)
+        {
+            tb.Foreground = isActive
+                ? Application.Current.Resources["BrandYellowBrush"] as Brush
+                : Application.Current.Resources["BrandMutedBrush"] as Brush;
+        }
+
+        // ── Inject ─────────────────────────────────────────────────────
 
         private async void InjectBtn_Click(object sender, RoutedEventArgs e)
         {
             if (_isInjected)
             {
-                Log("Already injected.", LogLevel.Warn);
+                StatusLabel.Text = "Already injected.";
                 return;
             }
 
-            var dllPath = DllPathBox.Text.Trim();
-            if (string.IsNullOrEmpty(dllPath) || !File.Exists(dllPath))
-            {
-                Log("DLL not found — browse to select it first.", LogLevel.Error);
-                return;
-            }
+            var procs = Process.GetProcessesByName("RocketLeague");
+            if (procs.Length == 0)
+                procs = Process.GetProcessesByName("RocketLeague_UE4");
 
-            var processName = ProcessCombo.SelectedIndex == 0 ? "RocketLeague" : "RocketLeague_UE4";
-            var procs = Process.GetProcessesByName(processName);
             if (procs.Length == 0)
             {
-                Log($"Process '{processName}.exe' not found. Launch the game first.", LogLevel.Error);
+                StatusLabel.Text = "Rocket League not found. Launch the game first.";
+                StatusLabel.Foreground = Application.Current.Resources["BrandDangerBrush"] as Brush;
+                StatusDot.Fill = Application.Current.Resources["BrandDangerBrush"] as Brush;
                 return;
             }
 
             SetInjectLoading(true);
-            Log($"Found {processName}.exe (PID {procs[0].Id})", LogLevel.Info);
-            Log("Injecting...", LogLevel.Info);
 
-            bool success = await Task.Run(() => Inject(procs[0].Id, dllPath));
+            bool success = await Task.Run(() => InjectInternal(procs[0].Id));
 
             SetInjectLoading(false);
 
             if (success)
             {
                 _isInjected = true;
-                SetInjectedState(true);
-                Log("Injection successful.", LogLevel.Ok);
+                StatusDot.Fill = Application.Current.Resources["BrandSuccessBrush"] as Brush;
+                StatusLabel.Text = "Injected";
+                StatusLabel.Foreground = Application.Current.Resources["BrandSuccessBrush"] as Brush;
             }
             else
             {
-                Log("Injection failed. Try running as administrator.", LogLevel.Error);
+                StatusDot.Fill = Application.Current.Resources["BrandDangerBrush"] as Brush;
+                StatusLabel.Text = "Injection failed. Run as administrator.";
+                StatusLabel.Foreground = Application.Current.Resources["BrandDangerBrush"] as Brush;
             }
         }
 
@@ -120,18 +142,7 @@ namespace YxllowLoader
             InjectBtn.IsEnabled = !loading;
         }
 
-        private void SetInjectedState(bool injected)
-        {
-            StatusDot.Fill = injected
-                ? Application.Current.Resources["BrandSuccessBrush"] as Brush
-                : Application.Current.Resources["BrandMutedBrush"] as Brush;
-            StatusLabel.Text = injected ? "Injected" : "Not Injected";
-            StatusLabel.Foreground = injected
-                ? Application.Current.Resources["BrandSuccessBrush"] as Brush
-                : Application.Current.Resources["BrandMutedBrush"] as Brush;
-        }
-
-        // ── DLL Injection (LoadLibrary method) ─────────────────────────────
+        // ── DLL Injection (LoadLibrary method) ─────────────────────────
 
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern IntPtr OpenProcess(uint access, bool inheritHandle, int pid);
@@ -154,8 +165,20 @@ namespace YxllowLoader
         [DllImport("kernel32.dll")]
         static extern bool CloseHandle(IntPtr handle);
 
-        private static bool Inject(int pid, string dllPath)
+        private const string DllFileName = "yxllow.dll";
+
+        private static bool InjectInternal(int pid)
         {
+            // Placeholder — in production supply a real DLL path from config/license.
+            var assemblyDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            if (assemblyDir is null)
+                return false;
+
+            var dllPath = System.IO.Path.Combine(assemblyDir, DllFileName);
+
+            if (!System.IO.File.Exists(dllPath))
+                return false;
+
             const uint PROCESS_ALL_ACCESS = 0x1F0FFF;
             const uint MEM_COMMIT = 0x1000;
             const uint MEM_RESERVE = 0x2000;
@@ -177,73 +200,11 @@ namespace YxllowLoader
             return thread != IntPtr.Zero;
         }
 
-        // ── Browse DLL ─────────────────────────────────────────────────────
-
-        private async void BrowseBtn_Click(object sender, RoutedEventArgs e)
-        {
-            var picker = new FileOpenPicker();
-            picker.FileTypeFilter.Add(".dll");
-
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-
-            var file = await picker.PickSingleFileAsync();
-            if (file != null)
-            {
-                DllPathBox.Text = file.Path;
-                Log($"DLL selected: {file.Name}", LogLevel.Info);
-            }
-        }
-
-        // ── Logout ─────────────────────────────────────────────────────────
+        // ── Logout ─────────────────────────────────────────────────────
 
         private void LogoutBtn_Click(object sender, RoutedEventArgs e)
         {
             MainWindow.RootFrame.Navigate(typeof(LoginPage));
-        }
-
-        // ── Console Log ────────────────────────────────────────────────────
-
-        private enum LogLevel { Info, Ok, Warn, Error }
-
-        private void Log(string message, LogLevel level = LogLevel.Info)
-        {
-            var (prefix, color) = level switch
-            {
-                LogLevel.Ok => ("[  OK  ]", "#22C55E"),
-                LogLevel.Warn => ("[ WARN ]", "#F59E0B"),
-                LogLevel.Error => ("[ ERR  ]", "#EF4444"),
-                _ => ("[ INFO ]", "#666666"),
-            };
-
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-
-            row.Children.Add(new TextBlock
-            {
-                Text = prefix,
-                Foreground = new SolidColorBrush(ColorHelper.FromArgb(255,
-                    Convert.ToByte(color.Substring(1, 2), 16),
-                    Convert.ToByte(color.Substring(3, 2), 16),
-                    Convert.ToByte(color.Substring(5, 2), 16))),
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 11,
-            });
-
-            row.Children.Add(new TextBlock
-            {
-                Text = message,
-                Foreground = new SolidColorBrush(ColorHelper.FromArgb(255, 0xCC, 0xCC, 0xCC)),
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 11,
-            });
-
-            LogPanel.Children.Add(row);
-            LogScroll.ScrollToVerticalOffset(LogScroll.ScrollableHeight + 9999);
-        }
-
-        private void ClearLog_Click(object sender, RoutedEventArgs e)
-        {
-            LogPanel.Children.Clear();
         }
     }
 }
