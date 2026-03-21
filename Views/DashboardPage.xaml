@@ -6,6 +6,18 @@
     Loaded="Page_Loaded">
 
     <Page.Resources>
+        <!-- Inject overlay spinning animation -->
+        <Storyboard x:Name="InjectSpinAnim" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetName="OuterSquareRotate"
+                             Storyboard.TargetProperty="Angle"
+                             From="0" To="360"
+                             Duration="0:0:1.5"/>
+            <DoubleAnimation Storyboard.TargetName="InnerSquareRotate"
+                             Storyboard.TargetProperty="Angle"
+                             From="0" To="-360"
+                             Duration="0:0:1.0"/>
+        </Storyboard>
+
         <!-- Opening animation: fade in + gentle scale up -->
         <Storyboard x:Name="PageOpenAnim">
             <DoubleAnimation Storyboard.TargetName="PageRoot"
@@ -320,12 +332,23 @@
                     Padding="28,0">
                 <Grid Height="56">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>    <!-- Nav tabs (centered) -->
-                        <ColumnDefinition Width="Auto"/> <!-- Username + Logout -->
+                        <ColumnDefinition Width="*"/>    <!-- Left: Username -->
+                        <ColumnDefinition Width="Auto"/> <!-- Center: Nav tabs -->
+                        <ColumnDefinition Width="*"/>    <!-- Right: Logout -->
                     </Grid.ColumnDefinitions>
 
-                    <!-- Nav tabs (center) -->
-                    <StackPanel Grid.Column="0"
+                    <!-- Left: username -->
+                    <TextBlock x:Name="NavUsername"
+                               Grid.Column="0"
+                               Text="..."
+                               Foreground="{StaticResource BrandMutedBrush}"
+                               FontFamily="Segoe UI Variable Text"
+                               FontSize="13"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"/>
+
+                    <!-- Center: Nav tabs -->
+                    <StackPanel Grid.Column="1"
                                 Orientation="Horizontal"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
@@ -375,31 +398,20 @@
 
                     </StackPanel>
 
-                    <!-- Right: username + red logout button -->
-                    <StackPanel Grid.Column="1"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                Spacing="12">
-                        <TextBlock x:Name="NavUsername"
-                                   Text="..."
-                                   Foreground="{StaticResource BrandMutedBrush}"
-                                   FontFamily="Segoe UI Variable Text"
-                                   FontSize="13"
-                                   VerticalAlignment="Center"/>
-                        <Button Background="#EF4444"
-                                BorderThickness="0"
-                                CornerRadius="6"
-                                Padding="14,7"
-                                VerticalAlignment="Center"
-                                Click="LogoutBtn_Click">
-                            <TextBlock Text="LOG OUT"
-                                       FontFamily="Segoe UI Variable Display"
-                                       FontWeight="SemiBold"
-                                       FontSize="12"
-                                       CharacterSpacing="100"
-                                       Foreground="White"/>
-                        </Button>
-                    </StackPanel>
+                    <!-- Right: logout icon button -->
+                    <Button Grid.Column="2"
+                            Background="#EF4444"
+                            BorderThickness="0"
+                            CornerRadius="6"
+                            Padding="12,7"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Click="LogoutBtn_Click">
+                        <!-- &#xE7E8; = Segoe MDL2 SignOut / exit icon -->
+                        <FontIcon Glyph="&#xE7E8;"
+                                  FontSize="14"
+                                  Foreground="White"/>
+                    </Button>
                 </Grid>
             </Border>
 
@@ -408,21 +420,59 @@
         <!-- ── Inject overlay (covers entire UI during injection) ────────── -->
         <Grid x:Name="InjectOverlay"
               Visibility="Collapsed"
-              Background="#BB000000">
+              Background="#CC000000">
             <StackPanel HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Spacing="20">
-                <ProgressRing x:Name="OverlaySpinner"
-                              IsActive="True"
-                              Width="52" Height="52"
-                              Foreground="{StaticResource BrandYellowBrush}"/>
-                <TextBlock x:Name="OverlayStatus"
-                           Text="Injecting..."
-                           HorizontalAlignment="Center"
-                           Foreground="White"
-                           FontFamily="Segoe UI Variable Display"
-                           FontWeight="SemiBold"
-                           FontSize="15"/>
+                        Spacing="28">
+
+                <!-- Spinning squares animation -->
+                <Grid Width="88" Height="88" HorizontalAlignment="Center">
+                    <!-- Outer rotating square -->
+                    <Border Width="88" Height="88"
+                            BorderBrush="{StaticResource BrandYellowBrush}"
+                            BorderThickness="2"
+                            CornerRadius="5"
+                            RenderTransformOrigin="0.5,0.5">
+                        <Border.RenderTransform>
+                            <RotateTransform x:Name="OuterSquareRotate"/>
+                        </Border.RenderTransform>
+                    </Border>
+                    <!-- Inner rotating square (opposite direction) -->
+                    <Border Width="50" Height="50"
+                            BorderBrush="{StaticResource BrandYellowBrush}"
+                            BorderThickness="2"
+                            CornerRadius="3"
+                            RenderTransformOrigin="0.5,0.5"
+                            Opacity="0.65"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                        <Border.RenderTransform>
+                            <RotateTransform x:Name="InnerSquareRotate"/>
+                        </Border.RenderTransform>
+                    </Border>
+                    <!-- Center bright dot -->
+                    <Ellipse Width="10" Height="10"
+                             Fill="{StaticResource BrandYellowBrush}"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"/>
+                </Grid>
+
+                <StackPanel HorizontalAlignment="Center" Spacing="8">
+                    <TextBlock x:Name="OverlayStatus"
+                               Text="Injecting..."
+                               HorizontalAlignment="Center"
+                               Foreground="White"
+                               FontFamily="Segoe UI Variable Display"
+                               FontWeight="SemiBold"
+                               FontSize="16"
+                               CharacterSpacing="100"/>
+                    <TextBlock Text="Please wait"
+                               HorizontalAlignment="Center"
+                               Foreground="{StaticResource BrandMutedBrush}"
+                               FontFamily="Segoe UI Variable Text"
+                               FontSize="12"/>
+                </StackPanel>
+
             </StackPanel>
         </Grid>
 

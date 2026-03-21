@@ -71,7 +71,7 @@
                                    CharacterSpacing="150"/>
                         <TextBox x:Name="UsernameBox"
                                  Style="{StaticResource YxllowTextBoxStyle}"
-                                 PlaceholderText="your username"
+                                 PlaceholderText="username"
                                  Height="42"/>
                     </StackPanel>
 
@@ -85,7 +85,7 @@
                                    CharacterSpacing="150"/>
                         <PasswordBox x:Name="PasswordBox"
                                      Style="{StaticResource YxllowPasswordBoxStyle}"
-                                     PlaceholderText="your password"
+                                     PlaceholderText="password"
                                      Height="42"/>
                     </StackPanel>
 
