@@ -16,22 +16,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <Page Remove="views\DashboardPage.xaml" />
-	  <Page Remove="views\LoginPage.xaml" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240627000" />
 		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.756" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <None Update="Views\DashboardPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </None>
-	  <None Update="Views\LoginPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </None>
 	</ItemGroup>
 
 </Project>
