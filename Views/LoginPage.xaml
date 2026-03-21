@@ -45,8 +45,7 @@
                                FontFamily="Segoe UI Variable Display"
                                FontWeight="Bold"
                                FontSize="34">
-                        <Run Text="yxllow" Foreground="{StaticResource BrandYellowBrush}"/>
-                        <Run Text="." Foreground="{StaticResource BrandMutedBrush}" FontSize="28"/>
+                        <Run Text="yxllow" Foreground="{StaticResource BrandYellowBrush}"/><Run Text=".tech" Foreground="{StaticResource BrandMutedBrush}" FontSize="24"/>
                     </TextBlock>
                     <TextBlock Text="SDK LOADER"
                                HorizontalAlignment="Center"

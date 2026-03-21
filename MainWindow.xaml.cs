@@ -16,24 +16,6 @@ namespace YxllowLoader
 
         private bool _isClosing = false;
 
-        // Pixel grid positions (col, row) that form a hollow 4×4 square outline
-        private static readonly (double col, double row)[] PixelGridPos =
-        {
-            (0,0),(1,0),(2,0),(3,0),   // top row
-            (0,1),(3,1),               // middle rows
-            (0,2),(3,2),
-            (0,3),(1,3),(2,3),(3,3),   // bottom row
-        };
-
-        // Pre-defined scatter offsets so each pixel flies in from a unique direction
-        private static readonly (double dx, double dy)[] ScatterOffsets =
-        {
-            (-80,-60), (-30,-90), (35,-85), (85,-55),
-            (-105,  5), (110, 20),
-            (-110, 45), (108, 55),
-            (-75,  80), (-25,100), (40,  95), (92, 70),
-        };
-
         public MainWindow()
         {
             this.InitializeComponent();
@@ -83,35 +65,46 @@ namespace YxllowLoader
         private async Task RunSplashAnimationAsync()
         {
             // ── Build pixel elements ─────────────────────────────────────
-            const int CellSize   = 16;  // pixels per grid cell (including gap)
-            const int PixelSize  = 14;  // visual size of each pixel square
-            const double CanvasW = 96;
-            const double CanvasH = 96;
-
-            double offsetX = (CanvasW - 4 * CellSize) / 2.0;  // = 16
-            double offsetY = (CanvasH - 4 * CellSize) / 2.0;  // = 16
+            // 16×16 filled solid square (256 pixels — much more dramatic than the
+            // original 12-pixel hollow outline).
+            const int    GridSize  = 16;
+            const int    CellSize  = 7;   // 6 px pixel + 1 px gap
+            const int    PixelSize = 6;
+            const int    Total     = GridSize * GridSize;   // 256
 
             var pixelBrush = Application.Current.Resources["BrandYellowBrush"] as SolidColorBrush
                 ?? new SolidColorBrush(ColorHelper.FromArgb(255, 255, 195, 0));
 
-            var borders    = new Border[PixelGridPos.Length];
-            var transforms = new TranslateTransform[PixelGridPos.Length];
+            var borders    = new Border[Total];
+            var transforms = new TranslateTransform[Total];
 
-            for (int i = 0; i < PixelGridPos.Length; i++)
+            // Generate scatter positions via the golden-angle spiral so every pixel
+            // flies in from a unique direction spread all over the screen.
+            var scatterDx = new double[Total];
+            var scatterDy = new double[Total];
+            for (int i = 0; i < Total; i++)
             {
-                var (col, row) = PixelGridPos[i];
-                double finalX = offsetX + col * CellSize;
-                double finalY = offsetY + row * CellSize;
-                var (dx, dy)  = ScatterOffsets[i];
+                double angle  = i * 137.508 * Math.PI / 180.0; // golden angle
+                double dist   = 300.0 + (i % 23) * 18.0;       // 300..714 px from centre
+                scatterDx[i]  = Math.Cos(angle) * dist;
+                scatterDy[i]  = Math.Sin(angle) * dist;
+            }
 
-                var transform = new TranslateTransform { X = dx, Y = dy };
+            for (int idx = 0; idx < Total; idx++)
+            {
+                int    row    = idx / GridSize;
+                int    col    = idx % GridSize;
+                double finalX = col * CellSize;
+                double finalY = row * CellSize;
+
+                var transform = new TranslateTransform { X = scatterDx[idx], Y = scatterDy[idx] };
 
                 var pixel = new Border
                 {
                     Width           = PixelSize,
                     Height          = PixelSize,
                     Background      = pixelBrush,
-                    CornerRadius    = new CornerRadius(2),
+                    CornerRadius    = new CornerRadius(1),
                     Opacity         = 0,
                     RenderTransform = transform,
                 };
@@ -120,23 +113,22 @@ namespace YxllowLoader
                 Canvas.SetTop(pixel,  finalY);
                 PixelCanvas.Children.Add(pixel);
 
-                borders[i]    = pixel;
-                transforms[i] = transform;
+                borders[idx]    = pixel;
+                transforms[idx] = transform;
             }
 
-            // ── Phase 1: Assembly — pixels fly from scatter to final position ──
+            // ── Phase 1: Assembly — 256 pixels fly from scatter to final position ──
             var assemblySb = new Storyboard();
 
-            for (int i = 0; i < PixelGridPos.Length; i++)
+            for (int i = 0; i < Total; i++)
             {
-                int delayMs = 30 + i * 50;    // stagger each pixel by 50 ms
-                var (dx, dy) = ScatterOffsets[i];
+                int delayMs = i * 3;  // 3 ms stagger → last pixel starts at 765 ms
 
                 var animX = new DoubleAnimation
                 {
-                    From           = dx,
+                    From           = scatterDx[i],
                     To             = 0,
-                    Duration       = new Duration(TimeSpan.FromMilliseconds(500)),
+                    Duration       = new Duration(TimeSpan.FromMilliseconds(700)),
                     BeginTime      = TimeSpan.FromMilliseconds(delayMs),
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
                 };
@@ -146,9 +138,9 @@ namespace YxllowLoader
 
                 var animY = new DoubleAnimation
                 {
-                    From           = dy,
+                    From           = scatterDy[i],
                     To             = 0,
-                    Duration       = new Duration(TimeSpan.FromMilliseconds(500)),
+                    Duration       = new Duration(TimeSpan.FromMilliseconds(700)),
                     BeginTime      = TimeSpan.FromMilliseconds(delayMs),
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
                 };
@@ -160,7 +152,7 @@ namespace YxllowLoader
                 {
                     From      = 0,
                     To        = 1,
-                    Duration  = new Duration(TimeSpan.FromMilliseconds(280)),
+                    Duration  = new Duration(TimeSpan.FromMilliseconds(320)),
                     BeginTime = TimeSpan.FromMilliseconds(delayMs),
                 };
                 Storyboard.SetTarget(animOp, borders[i]);
@@ -173,47 +165,26 @@ namespace YxllowLoader
             assemblySb.Begin();
             await tcs1.Task;
 
-            // ── Phase 2: Rotation — assembled square spins two full turns ──
-            var canvasRotate = new RotateTransform { Angle = 0, CenterX = 48, CenterY = 48 };
-            PixelCanvas.RenderTransform = canvasRotate;
+            // Brief hold so the completed square is visible before fading out.
+            await Task.Delay(320);
 
-            var rotSb = new Storyboard();
-            var rotAnim = new DoubleAnimation
-            {
-                From           = 0,
-                To             = 720,
-                Duration       = new Duration(TimeSpan.FromMilliseconds(900)),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut },
-            };
-            Storyboard.SetTarget(rotAnim, canvasRotate);
-            Storyboard.SetTargetProperty(rotAnim, "Angle");
-            rotSb.Children.Add(rotAnim);
-
-            var tcs2 = new TaskCompletionSource<bool>();
-            rotSb.Completed += (s, ea) => tcs2.TrySetResult(true);
-            rotSb.Begin();
-            await tcs2.Task;
-
-            // Brief pause before transitioning
-            await Task.Delay(150);
-
-            // ── Phase 3: Fade out the splash overlay ───────────────────────
+            // ── Phase 2: Fade out the splash overlay ─────────────────────
             var fadeSb = new Storyboard();
             var fadeAnim = new DoubleAnimation
             {
                 From           = 1,
                 To             = 0,
-                Duration       = new Duration(TimeSpan.FromMilliseconds(350)),
+                Duration       = new Duration(TimeSpan.FromMilliseconds(450)),
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn },
             };
             Storyboard.SetTarget(fadeAnim, SplashOverlay);
             Storyboard.SetTargetProperty(fadeAnim, "Opacity");
             fadeSb.Children.Add(fadeAnim);
 
-            var tcs3 = new TaskCompletionSource<bool>();
-            fadeSb.Completed += (s, ea) => tcs3.TrySetResult(true);
+            var tcs2 = new TaskCompletionSource<bool>();
+            fadeSb.Completed += (s, ea) => tcs2.TrySetResult(true);
             fadeSb.Begin();
-            await tcs3.Task;
+            await tcs2.Task;
         }
 
         private async void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)

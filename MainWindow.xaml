@@ -50,7 +50,7 @@
 
                 <!-- Pixel canvas — pixels added from code-behind -->
                 <Canvas x:Name="PixelCanvas"
-                        Width="96" Height="96"
+                        Width="112" Height="112"
                         HorizontalAlignment="Center"/>
 
                 <!-- Loading label -->
