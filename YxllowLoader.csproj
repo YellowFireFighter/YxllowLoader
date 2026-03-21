@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
@@ -13,11 +13,12 @@
 		<UseWinUI>true</UseWinUI>
 		<ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<WindowsPackageType>None</WindowsPackageType>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240627000" />
-		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.756" />
+		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.0" />
+		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
 	</ItemGroup>
 
 </Project>
