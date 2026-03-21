@@ -1,0 +1,145 @@
+<Page
+    x:Class="YxllowLoader.LoginPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{StaticResource BrandBgBrush}">
+
+    <Grid>
+        <!-- Subtle background accent glow -->
+        <Ellipse Width="600" Height="600"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Margin="0,-200,0,0">
+            <Ellipse.Fill>
+                <RadialGradientBrush>
+                    <GradientStop Color="#14FFC300" Offset="0"/>
+                    <GradientStop Color="#00000000" Offset="1"/>
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+
+        <!-- Login Card -->
+        <Border Width="380"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{StaticResource BrandSurfaceBrush}"
+                BorderBrush="{StaticResource BrandBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="12"
+                Padding="40,36">
+
+            <StackPanel Spacing="0">
+
+                <!-- Logo -->
+                <StackPanel HorizontalAlignment="Center" Margin="0,0,0,32">
+                    <TextBlock HorizontalAlignment="Center"
+                               FontFamily="Segoe UI Variable Display"
+                               FontWeight="Bold"
+                               FontSize="34">
+                        <Run Text="yxllow" Foreground="{StaticResource BrandYellowBrush}"/>
+                        <Run Text="." Foreground="{StaticResource BrandMutedBrush}" FontSize="28"/>
+                    </TextBlock>
+                    <TextBlock Text="SDK LOADER"
+                               HorizontalAlignment="Center"
+                               Foreground="{StaticResource BrandMutedBrush}"
+                               FontFamily="Segoe UI Variable Display"
+                               FontWeight="SemiBold"
+                               FontSize="10"
+                               CharacterSpacing="200"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <!-- Form -->
+                <StackPanel Spacing="12">
+
+                    <!-- Username -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="USERNAME"
+                                   Foreground="{StaticResource BrandMutedBrush}"
+                                   FontFamily="Segoe UI Variable Display"
+                                   FontWeight="SemiBold"
+                                   FontSize="10"
+                                   CharacterSpacing="150"/>
+                        <TextBox x:Name="UsernameBox"
+                                 Style="{StaticResource YxllowTextBoxStyle}"
+                                 PlaceholderText="your username"
+                                 Height="42"/>
+                    </StackPanel>
+
+                    <!-- Password -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="PASSWORD"
+                                   Foreground="{StaticResource BrandMutedBrush}"
+                                   FontFamily="Segoe UI Variable Display"
+                                   FontWeight="SemiBold"
+                                   FontSize="10"
+                                   CharacterSpacing="150"/>
+                        <PasswordBox x:Name="PasswordBox"
+                                     Style="{StaticResource YxllowPasswordBoxStyle}"
+                                     PlaceholderText="••••••••••"
+                                     Height="42"/>
+                    </StackPanel>
+
+                    <!-- Error Message -->
+                    <TextBlock x:Name="ErrorText"
+                               Text=""
+                               Foreground="{StaticResource BrandDangerBrush}"
+                               FontFamily="Segoe UI Variable Text"
+                               FontSize="12"
+                               Visibility="Collapsed"
+                               TextWrapping="Wrap"/>
+
+                    <!-- Login Button -->
+                    <Button x:Name="LoginBtn"
+                            Style="{StaticResource YxllowButtonStyle}"
+                            Height="44"
+                            HorizontalAlignment="Stretch"
+                            Margin="0,8,0,0"
+                            Click="LoginBtn_Click">
+                        <Grid>
+                            <TextBlock x:Name="LoginBtnText"
+                                       Text="LOGIN"
+                                       FontFamily="Segoe UI Variable Display"
+                                       FontWeight="SemiBold"
+                                       FontSize="13"
+                                       CharacterSpacing="100"
+                                       Foreground="#0A0A0A"/>
+                            <ProgressRing x:Name="LoginSpinner"
+                                          Width="18" Height="18"
+                                          Foreground="#0A0A0A"
+                                          Visibility="Collapsed"/>
+                        </Grid>
+                    </Button>
+
+                </StackPanel>
+
+                <!-- Footer -->
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            Margin="0,28,0,0"
+                            Spacing="4">
+                    <TextBlock Text="no account?"
+                               Foreground="{StaticResource BrandMutedBrush}"
+                               FontFamily="Segoe UI Variable Text"
+                               FontSize="12"/>
+                    <HyperlinkButton Content="join discord"
+                                     NavigateUri="https://discord.gg/yxllow"
+                                     Foreground="{StaticResource BrandYellowBrush}"
+                                     FontFamily="Segoe UI Variable Text"
+                                     FontSize="12"
+                                     Padding="0"/>
+                </StackPanel>
+
+            </StackPanel>
+        </Border>
+
+        <!-- Version watermark -->
+        <TextBlock Text="v1.0.0"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Bottom"
+                   Margin="0,0,16,12"
+                   Foreground="{StaticResource BrandMutedBrush}"
+                   FontFamily="Segoe UI Variable Text"
+                   FontSize="11"
+                   Opacity="0.5"/>
+    </Grid>
+</Page>

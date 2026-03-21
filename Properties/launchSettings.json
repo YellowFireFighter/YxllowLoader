@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "YxllowLoader (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "YxllowLoader (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

@@ -1,0 +1,87 @@
+<Application
+    x:Class="YxllowLoader.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Brand Colors -->
+            <Color x:Key="BrandYellow">#FFC300</Color>
+            <Color x:Key="BrandYellowDim">#CC9C00</Color>
+            <Color x:Key="BrandBg">#080808</Color>
+            <Color x:Key="BrandSurface">#101010</Color>
+            <Color x:Key="BrandSurface2">#181818</Color>
+            <Color x:Key="BrandBorder">#222222</Color>
+            <Color x:Key="BrandText">#F0F0F0</Color>
+            <Color x:Key="BrandMuted">#666666</Color>
+            <Color x:Key="BrandSuccess">#22C55E</Color>
+            <Color x:Key="BrandDanger">#EF4444</Color>
+
+            <SolidColorBrush x:Key="BrandYellowBrush"    Color="{StaticResource BrandYellow}"/>
+            <SolidColorBrush x:Key="BrandYellowDimBrush" Color="{StaticResource BrandYellowDim}"/>
+            <SolidColorBrush x:Key="BrandBgBrush"        Color="{StaticResource BrandBg}"/>
+            <SolidColorBrush x:Key="BrandSurfaceBrush"   Color="{StaticResource BrandSurface}"/>
+            <SolidColorBrush x:Key="BrandSurface2Brush"  Color="{StaticResource BrandSurface2}"/>
+            <SolidColorBrush x:Key="BrandBorderBrush"    Color="{StaticResource BrandBorder}"/>
+            <SolidColorBrush x:Key="BrandTextBrush"      Color="{StaticResource BrandText}"/>
+            <SolidColorBrush x:Key="BrandMutedBrush"     Color="{StaticResource BrandMuted}"/>
+            <SolidColorBrush x:Key="BrandSuccessBrush"   Color="{StaticResource BrandSuccess}"/>
+            <SolidColorBrush x:Key="BrandDangerBrush"    Color="{StaticResource BrandDanger}"/>
+
+            <!-- TextBox Style -->
+            <Style x:Key="YxllowTextBoxStyle" TargetType="TextBox">
+                <Setter Property="Background"            Value="{StaticResource BrandSurface2Brush}"/>
+                <Setter Property="Foreground"            Value="{StaticResource BrandTextBrush}"/>
+                <Setter Property="BorderBrush"           Value="{StaticResource BrandBorderBrush}"/>
+                <Setter Property="BorderThickness"       Value="1"/>
+                <Setter Property="CornerRadius"          Value="6"/>
+                <Setter Property="Padding"               Value="12,10"/>
+                <Setter Property="FontFamily"            Value="Segoe UI Variable Text"/>
+                <Setter Property="FontSize"              Value="13"/>
+                <Setter Property="PlaceholderForeground" Value="{StaticResource BrandMutedBrush}"/>
+            </Style>
+
+            <!-- PasswordBox Style -->
+            <Style x:Key="YxllowPasswordBoxStyle" TargetType="PasswordBox">
+                <Setter Property="Background"            Value="{StaticResource BrandSurface2Brush}"/>
+                <Setter Property="Foreground"            Value="{StaticResource BrandTextBrush}"/>
+                <Setter Property="BorderBrush"           Value="{StaticResource BrandBorderBrush}"/>
+                <Setter Property="BorderThickness"       Value="1"/>
+                <Setter Property="CornerRadius"          Value="6"/>
+                <Setter Property="Padding"               Value="12,10"/>
+                <Setter Property="FontFamily"            Value="Segoe UI Variable Text"/>
+                <Setter Property="FontSize"              Value="13"/>
+                <Setter Property="PlaceholderForeground" Value="{StaticResource BrandMutedBrush}"/>
+            </Style>
+
+            <!-- Primary Button Style -->
+            <Style x:Key="YxllowButtonStyle" TargetType="Button">
+                <Setter Property="Background"       Value="{StaticResource BrandYellowBrush}"/>
+                <Setter Property="Foreground"       Value="#0A0A0A"/>
+                <Setter Property="BorderThickness"  Value="0"/>
+                <Setter Property="CornerRadius"     Value="6"/>
+                <Setter Property="Padding"          Value="0"/>
+                <Setter Property="FontFamily"       Value="Segoe UI Variable Display"/>
+                <Setter Property="FontWeight"       Value="SemiBold"/>
+                <Setter Property="FontSize"         Value="13"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                <Setter Property="VerticalContentAlignment"   Value="Center"/>
+            </Style>
+
+            <!-- Ghost Button Style -->
+            <Style x:Key="YxllowGhostButtonStyle" TargetType="Button">
+                <Setter Property="Background"       Value="Transparent"/>
+                <Setter Property="Foreground"       Value="{StaticResource BrandMutedBrush}"/>
+                <Setter Property="BorderThickness"  Value="0"/>
+                <Setter Property="CornerRadius"     Value="6"/>
+                <Setter Property="Padding"          Value="10,8"/>
+                <Setter Property="FontFamily"       Value="Segoe UI Variable Text"/>
+                <Setter Property="FontSize"         Value="13"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
