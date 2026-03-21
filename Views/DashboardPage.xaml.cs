@@ -10,7 +10,6 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Windows.Storage.Pickers;
 using YxllowLoader.Models;
-using YxllowLoader.Views;
 
 namespace YxllowLoader
 {

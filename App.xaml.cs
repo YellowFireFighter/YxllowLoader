@@ -4,9 +4,9 @@ namespace YxllowLoader
 {
     public partial class App : Application
     {
-        private Window _window;
+        private Window? _window;
 
-        public static Window MainWindow { get; private set; }
+        public static Window? MainWindow { get; private set; }
 
         public App()
         {
