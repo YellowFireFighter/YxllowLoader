@@ -41,7 +41,7 @@
                 <Setter Property="Padding"               Value="12,10"/>
                 <Setter Property="FontFamily"            Value="Segoe UI Variable Text"/>
                 <Setter Property="FontSize"              Value="13"/>
-                <Setter Property="PlaceholderForeground" Value="{StaticResource BrandMutedBrush}"/>
+              
             </Style>
 
             <!-- PasswordBox Style -->
@@ -54,7 +54,7 @@
                 <Setter Property="Padding"               Value="12,10"/>
                 <Setter Property="FontFamily"            Value="Segoe UI Variable Text"/>
                 <Setter Property="FontSize"              Value="13"/>
-                <Setter Property="PlaceholderForeground" Value="{StaticResource BrandMutedBrush}"/>
+               
                 <Setter Property="PasswordRevealMode"    Value="Hidden"/>
             </Style>
 
