@@ -17,6 +17,7 @@ namespace YxllowLoader
     {
         private UserSession _session;
         private bool _isInjected = false;
+        private Process _gameProcess = null;
 
         public DashboardPage()
         {
@@ -26,6 +27,34 @@ namespace YxllowLoader
         private void Page_Loaded(object sender, RoutedEventArgs e)
         {
             PageOpenAnim.Begin();
+        }
+
+        private void Page_Unloaded(object sender, RoutedEventArgs e)
+        {
+            UnsubscribeGameProcess();
+        }
+
+        private void UnsubscribeGameProcess()
+        {
+            if (_gameProcess != null)
+            {
+                _gameProcess.Exited -= OnGameProcessExited;
+                _gameProcess.Dispose();
+                _gameProcess = null;
+            }
+        }
+
+        private void OnGameProcessExited(object sender, EventArgs e)
+        {
+            UnsubscribeGameProcess();
+            _isInjected = false;
+
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                StatusDot.Fill = Application.Current.Resources["BrandMutedBrush"] as Brush;
+                StatusLabel.Text = "Not Injected";
+                StatusLabel.Foreground = Application.Current.Resources["BrandMutedBrush"] as Brush;
+            });
         }
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -138,6 +167,12 @@ namespace YxllowLoader
             if (success)
             {
                 _isInjected = true;
+                _gameProcess = procs[0];
+                _gameProcess.EnableRaisingEvents = true;
+                _gameProcess.Exited += OnGameProcessExited;
+                // Handle the edge case where the process exited between injection and subscribing.
+                if (_gameProcess.HasExited)
+                    OnGameProcessExited(_gameProcess, EventArgs.Empty);
                 StatusDot.Fill = Application.Current.Resources["BrandSuccessBrush"] as Brush;
                 StatusLabel.Text = "Injected";
                 StatusLabel.Foreground = Application.Current.Resources["BrandSuccessBrush"] as Brush;
