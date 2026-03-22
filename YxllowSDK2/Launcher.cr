@@ -1,0 +1,20 @@
+{
+	"signature": "299c4bfcf82767a34445ebeac7c55f6e03e1cc385fc7dc6525b0982fc06a81322fc3b37cc0128e74cecd7f6a20449f2a0176f97ee46ad11b96ec91973a44c643",
+	"Supporters": "Faded (❤ Donated a cursor account ❤), peakingbloom, Faded, Abstract, nmeyt, hidan_59951, duck, aware_02, Tochy, tntgamer0815",
+	"Credits": "MarlBurrow, Flaryx32, Thorami, CodeRed (Made this launcher.)",
+	"WebsiteUrl": "https://yxllow.tech/",
+	"PsyonixVersion": "250721.67443.490872",
+	"UninstallerUrl": "https://github.com/CodeRedModding/CodeRed-Launcher/releases/download/v2.7.2/CodeRedUninstaller.zip",
+	"NewsUrl": "https://www.rocketleague.com/en/news/",
+	"ModuleUrl": "https://github.com/YellowFireFighter/YxllowSDK/releases/download/Current/yxllow.exe",
+	"LauncherChangelog": "Created this launcher based on the CodeRed Launcher: https://github.com/CodeRedModding/CodeRed-Launcher",
+	"LauncherVersion": "1.0.0",
+	"LauncherUrl": "https://github.com/YellowFireFighter/YxllowSDK/releases/download/Download/YxllowLauncher.zip",
+	"ModuleChangelog": "Visuals\nBoost timers: See when pads reactivate in real-time\nCar ESP: Precise hitboxes for every player\nController overlay: Display bot and human inputs\nChat\nAI responder: Defend against bot accusations\nToxicity guard: Auto responses to toxic behavior\nHuman-like: Natural conversation patterns\nBot\nNexto integration: Neural network processing\nAuto queue: Automated matchmaking\nDiscord logs: Game stats via webhook\nSplitscreen: Multiple bots per instance",
+	"LauncherAlt": "null",
+	"AltEndpoint": "false",
+	"DiscordUrl": "https://discord.gg/6qFa34HUqB",
+	"ModuleVersion": "1.0.0",
+	"Disclaimer": "Educational and experimental use only. Usage online may result in a ban. Proceed at your own risk. The developers are not responsible for any account bans or disciplinary actions taken by Psyonix or Epic Games. Use at your own risk.",
+	"KofiUrl": "https://ko-fi.com/flaryx32"
+}
