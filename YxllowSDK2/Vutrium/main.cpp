@@ -55,6 +55,30 @@ std::string VirtualKeyToString(UINT vkCode);
 std::atomic<bool> g_ShutdownSignal = false;
 std::atomic<bool> g_SdkAndHooksInitialized = false;
 
+// ── rlgym bot server (port 13338) ──────────────────────────────────────
+const int BOT_SERVER_PORT = 13338;
+SOCKET g_BotServerSocket  = INVALID_SOCKET;
+SOCKET g_BotClientSocket  = INVALID_SOCKET;
+std::atomic<bool> g_BotServerActive = false;
+HANDLE g_hBotServerThread = NULL;
+
+// Latest action received from the rlgym bot (written every tick).
+// Protected by g_BotActionMutex.
+struct BotAction {
+    float Throttle   = 0.0f;
+    float Steer      = 0.0f;
+    float Pitch      = 0.0f;
+    float Yaw        = 0.0f;
+    float Roll       = 0.0f;
+    bool  Jump       = false;
+    bool  Boost      = false;
+    bool  Handbrake  = false;
+    bool  HasNewAction = false; // set to true when rlgym sends a fresh action
+};
+BotAction g_BotAction;
+std::mutex g_BotActionMutex;
+// ───────────────────────────────────────────────────────────────────────
+
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 
@@ -937,6 +961,251 @@ unsigned __stdcall EjectThread(void* pArg) {
 	}
 	return 0;
 }
+
+// ── rlgym bot server helpers ────────────────────────────────────────────
+
+// Hardcoded PRI field offset for team number (valid for current RL build).
+// Update this when the game is patched and offsets shift.
+static constexpr uintptr_t PRI_TEAM_OFFSET = 0x02C0;
+
+// Build a JSON string with the full current game state for rlgym.
+// Returns an empty string when the SDK is not initialized or there is no
+// active game event.
+static std::string ConstructGameStateJSON() {
+    if (!g_pRLSDK || !g_SdkAndHooksInitialized.load()) return "";
+
+    SDK::AGameEvent ge = g_pRLSDK->GetCurrentGameEvent();
+    if (!ge.IsValid()) return "";
+
+    const MemoryManager& pm = g_pRLSDK->GetMemoryManager();
+
+    // Helper lambdas to format common types.
+    auto flt = [](float v) -> std::string {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%.4f", v);
+        return std::string(buf);
+    };
+    auto vec3 = [&](const SDK::FVectorData& v) -> std::string {
+        return "[" + flt(v.X) + "," + flt(v.Y) + "," + flt(v.Z) + "]";
+    };
+    auto rot3 = [&](const SDK::FRotatorData& r) -> std::string {
+        return "[" + flt(static_cast<float>(r.Pitch)) + "," +
+                     flt(static_cast<float>(r.Yaw))   + "," +
+                     flt(static_cast<float>(r.Roll))   + "]";
+    };
+
+    std::string j = "{";
+
+    // ── Ball ──────────────────────────────────────────────────────────
+    j += "\"ball\":{";
+    auto balls = ge.GetBalls(pm);
+    if (!balls.empty() && balls[0].IsValid()) {
+        SDK::ABall& ball = balls[0];
+        j += "\"pos\":"    + vec3(ball.GetLocation(pm))        + ",";
+        j += "\"vel\":"    + vec3(ball.GetVelocity(pm))        + ",";
+        j += "\"ang_vel\":" + vec3(ball.GetAngularVelocity(pm));
+    } else {
+        j += "\"pos\":[0,0,0],\"vel\":[0,0,0],\"ang_vel\":[0,0,0]";
+    }
+    j += "},";
+
+    // ── Cars ──────────────────────────────────────────────────────────
+    j += "\"cars\":[";
+    auto cars = ge.GetCars(pm);
+    bool firstCar = true;
+    for (auto& car : cars) {
+        if (!car.IsValid()) continue;
+        if (!firstCar) j += ",";
+        firstCar = false;
+
+        SDK::UBoostComponent boostComp = car.GetBoostComponent(pm);
+        float boostAmount = boostComp.IsValid() ? boostComp.GetAmount(pm) : 0.0f;
+        SDK::APRI pri = car.GetPRI(pm);
+        uint8_t teamNum = 0;
+        if (pri.IsValid()) {
+            // Team number: read directly from PRI using build-specific offset.
+            auto tn = pm.Read<uint8_t>(pri.Address + PRI_TEAM_OFFSET);
+            if (tn) teamNum = *tn;
+        }
+
+        j += "{";
+        j += "\"pos\":"        + vec3(car.GetLocation(pm))           + ",";
+        j += "\"vel\":"        + vec3(car.GetVelocity(pm))           + ",";
+        j += "\"ang_vel\":"    + vec3(car.GetAngularVelocity(pm))    + ",";
+        j += "\"rot\":"        + rot3(car.GetRotation(pm))           + ",";
+        j += "\"boost\":"      + flt(boostAmount / 100.0f)           + ",";
+        j += "\"on_ground\":"  + std::string(car.IsOnGround(pm) ? "true" : "false") + ",";
+        j += "\"supersonic\":" + std::string(car.IsSupersonic(pm) ? "true" : "false") + ",";
+        j += "\"jumped\":"     + std::string(car.IsJumped(pm) ? "true" : "false")    + ",";
+        j += "\"team\":"       + std::to_string(teamNum);
+        j += "}";
+    }
+    j += "],";
+
+    // ── Match info ────────────────────────────────────────────────────
+    j += "\"match\":{";
+    j += "\"time_remaining\":"  + flt(ge.GetTimeRemaining(pm)) + ",";
+    j += "\"is_overtime\":"     + std::string(ge.IsOvertime(pm) ? "true" : "false") + ",";
+    j += "\"is_round_active\":" + std::string(ge.IsRoundActive(pm) ? "true" : "false");
+    j += "}";
+
+    j += "}\n";
+    return j;
+}
+
+// Parse an action JSON message from rlgym and store it in g_BotAction.
+// Expected format: {"throttle":0,"steer":0,"pitch":0,"yaw":0,"roll":0,
+//                   "jump":0,"boost":0,"handbrake":0}
+static void ParseAndStoreBotAction(const std::string& json) {
+    try {
+        auto getFloat = [&](const std::string& key, float def) -> float {
+            size_t pos = json.find("\"" + key + "\":");
+            if (pos == std::string::npos) return def;
+            pos += key.size() + 3;
+            return std::stof(json.substr(pos));
+        };
+        auto getBool = [&](const std::string& key) -> bool {
+            size_t pos = json.find("\"" + key + "\":");
+            if (pos == std::string::npos) return false;
+            pos += key.size() + 3;
+            // Skip any whitespace after the colon.
+            while (pos < json.size() && json[pos] == ' ') ++pos;
+            // Match the JSON literal "true" or a non-zero number.
+            if (pos + 4 <= json.size() && json.substr(pos, 4) == "true") return true;
+            if (pos + 5 <= json.size() && json.substr(pos, 5) == "false") return false;
+            // Numeric: 0 = false, anything else = true.
+            return pos < json.size() && json[pos] != '0';
+        };
+
+        std::lock_guard<std::mutex> lock(g_BotActionMutex);
+        g_BotAction.Throttle      = getFloat("throttle", 0.0f);
+        g_BotAction.Steer         = getFloat("steer",    0.0f);
+        g_BotAction.Pitch         = getFloat("pitch",    0.0f);
+        g_BotAction.Yaw           = getFloat("yaw",      0.0f);
+        g_BotAction.Roll          = getFloat("roll",     0.0f);
+        g_BotAction.Jump          = getBool("jump");
+        g_BotAction.Boost         = getBool("boost");
+        g_BotAction.Handbrake     = getBool("handbrake");
+        g_BotAction.HasNewAction  = true;
+    } catch (const std::exception& e) {
+        Logger::Warning("BotServer: Failed to parse action JSON (" + std::string(e.what()) +
+                        "): " + json.substr(0, 256));
+    } catch (...) {
+        Logger::Warning("BotServer: Failed to parse action JSON (unknown error): " + json.substr(0, 256));
+    }
+}
+
+// Dedicated rlgym bot TCP server thread.
+// Protocol (newline-delimited, UTF-8):
+//   Client -> Server: "get_obs\n"        -> Server returns game state JSON
+//   Client -> Server: "set_action:{...json...}\n" -> Server stores the action
+unsigned __stdcall BotServerThread(void* /*pArg*/) {
+    Logger::Info("BotServer: Initializing Winsock...");
+    WSADATA wsa = {};
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+        Logger::Error("BotServer: WSAStartup failed: " + std::to_string(WSAGetLastError()));
+        return 1;
+    }
+
+    g_BotServerSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (g_BotServerSocket == INVALID_SOCKET) {
+        Logger::Error("BotServer: socket() failed: " + std::to_string(WSAGetLastError()));
+        WSACleanup();
+        return 1;
+    }
+
+    // Allow quick rebind after crash / restart.
+    BOOL opt = TRUE;
+    setsockopt(g_BotServerSocket, SOL_SOCKET, SO_REUSEADDR,
+               reinterpret_cast<const char*>(&opt), sizeof(opt));
+
+    sockaddr_in addr = {};
+    addr.sin_family = AF_INET;
+    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+    addr.sin_port = htons(BOT_SERVER_PORT);
+
+    if (bind(g_BotServerSocket, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR) {
+        Logger::Error("BotServer: bind() failed: " + std::to_string(WSAGetLastError()));
+        closesocket(g_BotServerSocket);
+        g_BotServerSocket = INVALID_SOCKET;
+        WSACleanup();
+        return 1;
+    }
+
+    if (listen(g_BotServerSocket, 1) == SOCKET_ERROR) {
+        Logger::Error("BotServer: listen() failed: " + std::to_string(WSAGetLastError()));
+        closesocket(g_BotServerSocket);
+        g_BotServerSocket = INVALID_SOCKET;
+        WSACleanup();
+        return 1;
+    }
+
+    Logger::Info("BotServer: Listening on 127.0.0.1:" + std::to_string(BOT_SERVER_PORT) +
+                 "  (rlgym protocol: get_obs / set_action)");
+    g_BotServerActive = true;
+
+    while (g_BotServerActive) {
+        g_BotClientSocket = accept(g_BotServerSocket, nullptr, nullptr);
+        if (g_BotClientSocket == INVALID_SOCKET) {
+            if (g_BotServerActive)
+                Logger::Error("BotServer: accept() failed: " + std::to_string(WSAGetLastError()));
+            Sleep(100);
+            continue;
+        }
+        Logger::Info("BotServer: rlgym client connected.");
+
+        // Per-connection receive loop.
+        std::string recvBuf;
+        recvBuf.reserve(4096);
+        char chunk[1024];
+
+        while (g_BotServerActive) {
+            int n = recv(g_BotClientSocket, chunk, sizeof(chunk) - 1, 0);
+            if (n <= 0) {
+                Logger::Info("BotServer: rlgym client disconnected.");
+                break;
+            }
+            chunk[n] = '\0';
+            recvBuf += chunk;
+
+            // Process all complete (newline-terminated) messages.
+            size_t nlPos;
+            while ((nlPos = recvBuf.find('\n')) != std::string::npos) {
+                std::string msg = recvBuf.substr(0, nlPos);
+                recvBuf.erase(0, nlPos + 1);
+
+                // Trim trailing \r if present.
+                if (!msg.empty() && msg.back() == '\r') msg.pop_back();
+
+                if (msg == "get_obs") {
+                    std::string state = ConstructGameStateJSON();
+                    if (state.empty()) state = "{\"error\":\"sdk_not_ready\"}\n";
+                    // state always ends with \n (either from ConstructGameStateJSON or the fallback).
+                    ::send(g_BotClientSocket, state.c_str(), static_cast<int>(state.size()), 0);
+                } else if (msg.rfind("set_action:", 0) == 0) {
+                    ParseAndStoreBotAction(msg.substr(11));
+                    ::send(g_BotClientSocket, "ok\n", 3, 0);
+                } else {
+                    Logger::Warning("BotServer: Unknown message: " + msg.substr(0, 64));
+                    const char* err = "{\"error\":\"unknown_command\"}\n";
+                    ::send(g_BotClientSocket, err, static_cast<int>(strlen(err)), 0);
+                }
+            }
+        }
+
+        closesocket(g_BotClientSocket);
+        g_BotClientSocket = INVALID_SOCKET;
+    }
+
+    if (g_BotServerSocket != INVALID_SOCKET) {
+        closesocket(g_BotServerSocket);
+        g_BotServerSocket = INVALID_SOCKET;
+    }
+    WSACleanup();
+    Logger::Info("BotServer: Thread exiting.");
+    return 0;
+}
+// ── end rlgym bot server ────────────────────────────────────────────────
 
 std::string ConstructSettingsJSON() {
 	std::string json_str = "{";
@@ -2510,6 +2779,47 @@ bool InitializeSDKAndHooks() {
 				Logger::Info("[EVENT] Reset Pickups");
 				g_FieldState.ResetBoostPads();
 			});
+
+			// Subscribe to PlayerTick to apply rlgym bot actions each frame.
+			g_pRLSDK->Subscribe(EventType::OnPlayerTick, [](const EventData& data) {
+				const auto* tickData = dynamic_cast<const EventPlayerTickData*>(&data);
+				if (!tickData || !g_pRLSDK) return;
+				if (!g_BotEnabledForClient.load()) return;
+
+				BotAction action;
+				{
+					std::lock_guard<std::mutex> lock(g_BotActionMutex);
+					if (!g_BotAction.HasNewAction) return;
+					action = g_BotAction;
+					g_BotAction.HasNewAction = false;
+				}
+
+				// Find the local player car via the PlayerController from the tick event.
+				SDK::APlayerController pc(tickData->PlayerControllerAddress);
+				if (!pc.IsValid()) return;
+
+				SDK::ACar car = pc.GetCar(g_pRLSDK->GetMemoryManager());
+				if (!car.IsValid()) return;
+
+				// Build the VehicleInputsData struct we want to write.
+				SDK::VehicleInputsData inputs;
+				inputs.Throttle = action.Throttle;
+				inputs.Steer    = action.Steer;
+				inputs.Pitch    = action.Pitch;
+				inputs.Yaw      = action.Yaw;
+				inputs.Roll     = action.Roll;
+
+				uint32_t combined = 0;
+				if (action.Handbrake) combined |= (1u << 0); // bit 0: handbrake
+				if (action.Jump)      combined |= (1u << 1); // bit 1: jump
+				if (action.Boost)     combined |= (1u << 2) | (1u << 3); // bit 2: boost pressed, bit 3: boost held
+				inputs.CombinedInput = combined;
+
+				// Write directly to the car's replicated inputs.
+				g_pRLSDK->GetMemoryManager().WriteBytes(
+					car.Address + SDK::AVehicle::Offset_ReplicatedInputs,
+					&inputs, sizeof(inputs));
+			});
 			
 			g_FieldState.ResetBoostPads();
 			Logger::Info("InitializeSDKAndHooks: FieldState initialized with boost pads.");
@@ -2572,6 +2882,14 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
 	}
 	Logger::Info("MainThread: Server thread created successfully.");
 
+	Logger::Info("MainThread: Starting rlgym bot server thread (port " + std::to_string(BOT_SERVER_PORT) + ")...");
+	g_hBotServerThread = (HANDLE)_beginthreadex(NULL, 0, BotServerThread, NULL, 0, NULL);
+	if (g_hBotServerThread == NULL) {
+		Logger::Warning("MainThread: Failed to create BotServerThread – bot server unavailable.");
+	} else {
+		Logger::Info("MainThread: Bot server thread created successfully.");
+	}
+
 	Logger::Info("MainThread: Setup complete. Waiting for shutdown signal...");
 	while (!g_ShutdownSignal.load()) { 
 		Sleep(100); 
@@ -2610,6 +2928,25 @@ BOOL WINAPI DllMain(HMODULE hMod, DWORD dwReason, LPVOID lpReserved)
 				g_hServerMainLoopThread = NULL;
 			}
 			Logger::Info("DLL_PROCESS_DETACH: Server thread hopefully stopped.");
+		}
+
+		// Stop the bot server thread.
+		if (g_BotServerActive) {
+			g_BotServerActive = false;
+			if (g_BotClientSocket != INVALID_SOCKET) {
+				closesocket(g_BotClientSocket);
+				g_BotClientSocket = INVALID_SOCKET;
+			}
+			if (g_BotServerSocket != INVALID_SOCKET) {
+				closesocket(g_BotServerSocket);
+				g_BotServerSocket = INVALID_SOCKET;
+			}
+			if (g_hBotServerThread != NULL) {
+				WaitForSingleObject(g_hBotServerThread, 500);
+				CloseHandle(g_hBotServerThread);
+				g_hBotServerThread = NULL;
+			}
+			Logger::Info("DLL_PROCESS_DETACH: Bot server thread stopped.");
 		}
 
 		if (g_pRLSDK) {

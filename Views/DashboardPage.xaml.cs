@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -142,30 +143,42 @@ namespace YxllowLoader
                 return;
             }
 
+            ClearInjectionLog();
+
+            AppendInjectionLog("Searching for Rocket League process...");
             var procs = Process.GetProcessesByName("RocketLeague");
             if (procs.Length == 0)
                 procs = Process.GetProcessesByName("RocketLeague_UE4");
 
             SetInjectLoading(true, "Connecting to process...");
-            await Task.Delay(800);
+            await Task.Delay(300);
 
             if (procs.Length == 0)
             {
                 SetInjectLoading(false);
-
+                AppendInjectionLog("Rocket League not found. Launch the game first.", true);
                 StatusLabel.Text = "Rocket League not found. Launch the game first.";
                 StatusLabel.Foreground = Application.Current.Resources["BrandDangerBrush"] as Brush;
                 StatusDot.Fill = Application.Current.Resources["BrandDangerBrush"] as Brush;
                 return;
             }
 
+            AppendInjectionLog("Found process: " + procs[0].ProcessName + " (PID " + procs[0].Id + ")");
             SetInjectLoading(true, "Injecting SDK...");
-            bool success = await Task.Run(() => InjectInternal(procs[0].Id));
+
+            // Capture a local Action so the background thread can post log lines to the UI.
+            var logLines = new ConcurrentQueue<(string msg, bool err)>();
+            bool success = await Task.Run(() => InjectInternal(procs[0].Id, (msg, err) => logLines.Enqueue((msg, err))));
+
+            // Flush all queued log lines onto the UI thread.
+            while (logLines.TryDequeue(out var entry))
+                AppendInjectionLog(entry.msg, entry.err);
 
             SetInjectLoading(false);
 
             if (success)
             {
+                AppendInjectionLog("SDK injected successfully!");
                 _isInjected = true;
                 _gameProcess = procs[0];
                 _gameProcess.EnableRaisingEvents = true;
@@ -179,6 +192,7 @@ namespace YxllowLoader
             }
             else
             {
+                AppendInjectionLog("Injection failed. See log above.", true);
                 StatusDot.Fill = Application.Current.Resources["BrandDangerBrush"] as Brush;
                 StatusLabel.Text = "Injection failed. Run as administrator.";
                 StatusLabel.Foreground = Application.Current.Resources["BrandDangerBrush"] as Brush;
@@ -229,46 +243,99 @@ namespace YxllowLoader
 
         private const string DllFileName = "sdk.dll";
 
-        private static bool InjectInternal(int pid)
+        // ── Injection console log ──────────────────────────────────────
+
+        private void ClearInjectionLog()
+        {
+            InjectLogText.Text = "";
+            InjectLogText.Foreground = Application.Current.Resources["BrandMutedBrush"] as Brush;
+            InjectLogPanel.Visibility = Visibility.Visible;
+        }
+
+        private void AppendInjectionLog(string message, bool isError = false)
+        {
+            string prefix = isError ? "[ERR] " : "[OK]  ";
+            InjectLogText.Text += prefix + message + "\n";
+            InjectLogText.Foreground = isError
+                ? Application.Current.Resources["BrandDangerBrush"] as Brush
+                : Application.Current.Resources["BrandMutedBrush"] as Brush;
+            // Scroll to end.
+            InjectLogScroll.ChangeView(null, InjectLogScroll.ScrollableHeight, null);
+        }
+
+        private static bool InjectInternal(int pid, Action<string, bool> log)
         {
             var assemblyDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             if (assemblyDir is null)
+            {
+                log("Cannot determine assembly directory.", true);
                 return false;
+            }
 
             var dllPath = System.IO.Path.Combine(assemblyDir, DllFileName);
+            log("DLL path: " + dllPath, false);
 
             if (!System.IO.File.Exists(dllPath))
+            {
+                log(DllFileName + " not found next to the loader.", true);
                 return false;
+            }
+            log("DLL found on disk.", false);
 
             const uint PROCESS_ALL_ACCESS = 0x1F0FFF;
             const uint MEM_COMMIT = 0x1000;
             const uint MEM_RESERVE = 0x2000;
             const uint PAGE_READWRITE = 0x04;
 
+            log("Opening process handle (PID " + pid + ")...", false);
             var hProc = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
-            if (hProc == IntPtr.Zero) return false;
+            if (hProc == IntPtr.Zero)
+            {
+                log("OpenProcess failed – run as administrator.", true);
+                return false;
+            }
+            log("Process handle acquired.", false);
 
             // Use Unicode (UTF-16 LE) path bytes and LoadLibraryW so the path
             // is correctly interpreted regardless of the system ANSI code page.
             var pathBytes = System.Text.Encoding.Unicode.GetBytes(dllPath + "\0");
+            log("Allocating remote memory (" + pathBytes.Length + " bytes)...", false);
             var alloc = VirtualAllocEx(hProc, IntPtr.Zero, (uint)pathBytes.Length, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-            if (alloc == IntPtr.Zero) { CloseHandle(hProc); return false; }
+            if (alloc == IntPtr.Zero)
+            {
+                log("VirtualAllocEx failed.", true);
+                CloseHandle(hProc);
+                return false;
+            }
+            log("Remote memory allocated at 0x" + alloc.ToString("X"), false);
 
+            log("Writing DLL path into remote process...", false);
             WriteProcessMemory(hProc, alloc, pathBytes, (uint)pathBytes.Length, out _);
+            log("DLL path written.", false);
 
+            log("Creating remote thread (LoadLibraryW)...", false);
             var loadLib = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
             var thread = CreateRemoteThread(hProc, IntPtr.Zero, 0, loadLib, alloc, 0, out _);
 
             bool success = false;
             if (thread != IntPtr.Zero)
             {
+                log("Remote thread created. Waiting for LoadLibraryW to return (max 5 s)...", false);
                 // Wait up to 5 s for LoadLibraryW to return, then check its exit
                 // code (the module handle) to confirm the DLL was actually loaded.
                 const uint WAIT_TIMEOUT_MS = 5000;
                 WaitForSingleObject(thread, WAIT_TIMEOUT_MS);
                 GetExitCodeThread(thread, out uint exitCode);
                 success = exitCode != 0;
+                if (success)
+                    log("LoadLibraryW returned 0x" + exitCode.ToString("X") + " – DLL loaded.", false);
+                else
+                    log("LoadLibraryW returned 0 – DLL failed to load.", true);
                 CloseHandle(thread);
+            }
+            else
+            {
+                log("CreateRemoteThread failed.", true);
             }
 
             CloseHandle(hProc);

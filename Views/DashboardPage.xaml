@@ -156,6 +156,29 @@
                                    FontSize="12"
                                    Opacity="0.6"/>
 
+                        <!-- Injection console log -->
+                        <Border x:Name="InjectLogPanel"
+                                Visibility="Collapsed"
+                                Width="420"
+                                MaxWidth="480"
+                                CornerRadius="8"
+                                Padding="14,10"
+                                Background="#14FFFFFF"
+                                BorderBrush="#22FFFFFF"
+                                BorderThickness="1">
+                            <ScrollViewer x:Name="InjectLogScroll"
+                                          MaxHeight="130"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <TextBlock x:Name="InjectLogText"
+                                           FontFamily="Consolas, Courier New"
+                                           FontSize="11"
+                                           Foreground="{StaticResource BrandMutedBrush}"
+                                           TextWrapping="Wrap"
+                                           IsTextSelectionEnabled="True"/>
+                            </ScrollViewer>
+                        </Border>
+
                     </StackPanel>
                 </Grid>
 
