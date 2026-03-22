@@ -8,7 +8,6 @@ using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
 using YxllowLoader.Models;
 
@@ -118,22 +117,12 @@ namespace YxllowLoader
             if (procs.Length == 0)
                 procs = Process.GetProcessesByName("RocketLeague_UE4");
 
-            // Always show animation so it can be tested without Rocket League open.
-            // TODO: Remove the simulation path once testing is complete.
             SetInjectLoading(true, "Connecting to process...");
             await Task.Delay(800);
 
             if (procs.Length == 0)
             {
-                SetInjectLoading(true, "Simulating injection...");
-                // Wait for the full code animation to complete all lines
-                if (_codeAnimTask != null)
-                {
-                    // Await the animation task; OperationCanceledException is expected if
-                    // SetInjectLoading(false) is called before the animation finishes.
-                    try { await _codeAnimTask; } catch (OperationCanceledException) { }
-                }
-                SetInjectLoading(false, "");
+                SetInjectLoading(false);
 
                 StatusLabel.Text = "Rocket League not found. Launch the game first.";
                 StatusLabel.Foreground = Application.Current.Resources["BrandDangerBrush"] as Brush;
@@ -144,7 +133,7 @@ namespace YxllowLoader
             SetInjectLoading(true, "Injecting SDK...");
             bool success = await Task.Run(() => InjectInternal(procs[0].Id));
 
-            SetInjectLoading(false, "");
+            SetInjectLoading(false);
 
             if (success)
             {
@@ -161,136 +150,17 @@ namespace YxllowLoader
             }
         }
 
-        private CancellationTokenSource _codeAnimCts;
-        private Task _codeAnimTask;
-
         private void SetInjectLoading(bool loading, string statusText = "")
         {
             InjectBtnContent.Visibility = loading ? Visibility.Collapsed : Visibility.Visible;
             InjectSpinner.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
             InjectBtn.IsEnabled = !loading;
+            InjectOverlay.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
 
-            if (loading)
-            {
-                bool wasHidden = InjectOverlay.Visibility == Visibility.Collapsed;
-                InjectOverlay.Visibility = Visibility.Visible;
-                if (!string.IsNullOrEmpty(statusText))
-                    OverlayStatus.Text = statusText;
-                if (wasHidden)
-                {
-                    ResetCodeLines();
-                    CursorBlinkAnim.Begin();
-                    CarPulseAnim.Begin();
-                    ArrowsAnim.Begin();
-                    _codeAnimCts = new CancellationTokenSource();
-                    _codeAnimTask = RunCodeAnimationAsync(_codeAnimCts.Token);
-                }
-            }
-            else
-            {
-                _codeAnimCts?.Cancel();
-                _codeAnimCts = null;
-                InjectOverlay.Visibility = Visibility.Collapsed;
-                CursorBlinkAnim.Stop();
-                CarPulseAnim.Stop();
-                ArrowsAnim.Stop();
-                ResetCodeLines();
-            }
-        }
-
-        private async Task RunCodeAnimationAsync(CancellationToken ct)
-        {
-            const int TypingDelayMs       = 22;   // ms between each typed character
-            const int LineCompletionPause = 120;  // ms pause after a line finishes typing
-
-            // Upload log messages — themed around beaming code into the car
-            var lines = new[]
-            {
-                "> Locating Rocket League process...",
-                "> Attaching to boost controller...",
-                "> Allocating memory in car ECU...",
-                "> Uploading SDK payload...",
-                "> Writing boost modules to car...",
-                "> Verifying data transfer...",
-                "> Loading SDK libraries...",
-                "> Initializing boost hooks...",
-                "> Syncing with car telemetry...",
-                "> Upload complete. Boost activated!",
-            };
-
-            // Short code snippets shown in the car upload visualizer
-            var snippets = new[]
-            {
-                new[] { "LoadLibraryA()", "sdk.init()", "0xDEADBEEF" },
-                new[] { "boost.attach()", "rl_hook()", "0x4F50454E" },
-                new[] { "VAlloc(0x100)", "WriteProc()", "RemoteThread" },
-                new[] { "sdk.inject()", "boost.exe", "car.patch()" },
-                new[] { "modules.load()", "hooks.apply()", "mem.write()" },
-                new[] { "verify.crc()", "checksum ok", "transfer done" },
-                new[] { "lib.load()", "symbols.map()", "entry.find()" },
-                new[] { "hook.init()", "boost_fn()", "rl.attach()" },
-                new[] { "telemetry()", "car.sync()", "stats.link()" },
-                new[] { "✓ SDK ready", "✓ boost live", "✓ car online" },
-            };
-
-            var slots = new[] { CodeLine1, CodeLine2, CodeLine3, CodeLine4, CodeLine5 };
-
-            // Type the "current" prompt line character by character, then
-            // move it into one of the history slots and advance.
-            int historyIdx = 0;
-            for (int i = 0; i < lines.Length; i++)
-            {
-                string line = lines[i];
-                // Remove leading "> " for the prompt — CodePrompt already shows "> "
-                string content = line.StartsWith("> ") ? line[2..] : line;
-
-                // Update the flying code snippets in the car visualizer
-                var snip = snippets[i];
-                FlyCode1.Text = snip[0];
-                FlyCode2.Text = snip[1];
-                FlyCode3.Text = snip[2];
-
-                // Show boost flame on the final step
-                if (i == lines.Length - 1)
-                    BoostFlame.Text = "🔥";
-
-                // Type out the current line
-                CodeCurrent.Text = "";
-                for (int ch = 0; ch < content.Length; ch++)
-                {
-                    if (ct.IsCancellationRequested) return;
-                    CodeCurrent.Text = content[..(ch + 1)];
-                    try { await Task.Delay(TypingDelayMs, ct); }
-                    catch (OperationCanceledException) { return; }
-                }
-
-                // Brief pause after finishing the line
-                try { await Task.Delay(LineCompletionPause, ct); }
-                catch (OperationCanceledException) { return; }
-
-                // Commit the completed line into the next history slot
-                slots[historyIdx % slots.Length].Text = line;
-                historyIdx++;
-                CodeCurrent.Text = "";
-
-                // Update boost meter
-                InjectProgressBar.Value = (i + 1) * 100.0 / lines.Length;
-            }
-        }
-
-        private void ResetCodeLines()
-        {
-            CodeLine1.Text = "";
-            CodeLine2.Text = "";
-            CodeLine3.Text = "";
-            CodeLine4.Text = "";
-            CodeLine5.Text = "";
-            CodeCurrent.Text = "";
-            FlyCode1.Text = "";
-            FlyCode2.Text = "";
-            FlyCode3.Text = "";
-            BoostFlame.Text = "";
-            InjectProgressBar.Value = 0;
+            if (loading && !string.IsNullOrEmpty(statusText))
+                OverlayStatus.Text = statusText;
+            else if (!loading)
+                OverlayStatus.Text = "";
         }
 
         // ── DLL Injection (LoadLibrary method) ─────────────────────────
