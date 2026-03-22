@@ -1028,17 +1028,17 @@ static std::string ConstructGameStateJSON() {
             if (tn) teamNum = *tn;
         }
 
-        j += "{";
-        j += "\"pos\":"        + vec3(car.GetLocation(pm))           + ",";
-        j += "\"vel\":"        + vec3(car.GetVelocity(pm))           + ",";
-        j += "\"ang_vel\":"    + vec3(car.GetAngularVelocity(pm))    + ",";
-        j += "\"rot\":"        + rot3(car.GetRotation(pm))           + ",";
-        j += "\"boost\":"      + flt(boostAmount / 100.0f)           + ",";
-        j += "\"on_ground\":"  + std::string(car.IsOnGround(pm) ? "true" : "false") + ",";
-        j += "\"supersonic\":" + std::string(car.IsSupersonic(pm) ? "true" : "false") + ",";
-        j += "\"jumped\":"     + std::string(car.IsJumped(pm) ? "true" : "false")    + ",";
-        j += "\"team\":"       + std::to_string(teamNum);
-        j += "}";
+        //j += "{";
+        //j += "\"pos\":"        + vec3(car.GetLocation(pm))           + ",";
+        //j += "\"vel\":"        + vec3(car.GetVelocity(pm))           + ",";
+        //j += "\"ang_vel\":"    + vec3(car.GetAngularVelocity(pm))    + ",";
+        //j += "\"rot\":"        + rot3(car.GetRotation(pm))           + ",";
+        //j += "\"boost\":"      + flt(boostAmount / 100.0f)           + ",";
+        //j += "\"on_ground\":"  + std::string(car.IsOnGround(pm) ? "true" : "false") + ",";
+        //j += "\"supersonic\":" + std::string(car.IsSupersonic(pm) ? "true" : "false") + ",";
+        //j += "\"jumped\":"     + std::string(car.IsJumped(pm) ? "true" : "false")    + ",";
+        //j += "\"team\":"       + std::to_string(teamNum);
+        //j += "}";
     }
     j += "],";
 
