@@ -6,8 +6,101 @@
 #include <windows.h>
 #include <psapi.h>       // For GetModuleFileNameEx, GetModuleInformation
 #include <algorithm>     // For std::transform, std::max
+#include <map>
+#include <optional>
 #include <vector>
 #include <sstream>       // Needed for Logger::to_hex
+
+namespace {
+
+    // Byte patterns used to locate GNames and GObjects inside the game module.
+    // 0x00 bytes act as wildcards (any byte matches).
+    // Update these when the game is patched and the byte sequences shift.
+    const std::map<std::string, std::vector<uint8_t>> SCAN_PATTERNS = {
+        {"GNames_1",   {0x75, 0x05, 0xE8, 0x00, 0x00, 0x00, 0x00, 0x85, 0xDB, 0x75, 0x31}},
+        {"GObjects_1", {0xE8, 0x00, 0x00, 0x00, 0x00, 0x8B, 0x5D, 0xBF, 0x48}},
+        {"GNames_2",   {0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00}},
+        {"GObjects_2", {0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00}},
+    };
+
+    // Scan [begin, begin+size) for the given byte pattern.
+    // 0x00 bytes in the pattern are treated as wildcards.
+    std::optional<uintptr_t> PatternScan(const MemoryManager& pm, uintptr_t begin, size_t size,
+                                         const std::vector<uint8_t>& pattern,
+                                         const std::string& patternName = "Unknown")
+    {
+        if (pattern.empty() || size == 0 || size < pattern.size()) return std::nullopt;
+
+        std::vector<uint8_t> buffer;
+        try { buffer.resize(size); }
+        catch (const std::bad_alloc&) {
+            Logger::Error("RLSDK Scan Error: Failed to allocate buffer of size " +
+                          std::to_string(size) + " for pattern " + patternName);
+            return std::nullopt;
+        }
+
+        if (!pm.ReadBytes(begin, buffer.data(), size)) {
+            Logger::Error("RLSDK Scan Error: Failed to read memory for pattern " + patternName);
+            return std::nullopt;
+        }
+
+        for (size_t i = 0; i <= size - pattern.size(); ++i) {
+            bool found = true;
+            for (size_t j = 0; j < pattern.size(); ++j) {
+                if (pattern[j] != 0x00 && pattern[j] != buffer[i + j]) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) {
+                return begin + i;
+            }
+        }
+        Logger::Warning("RLSDK Scan Warning: Pattern " + patternName + " not found.");
+        return std::nullopt;
+    }
+
+    // Resolve an address via Method 1: follow a relative call then a RIP-relative LEA.
+    // isGNames selects the per-pattern adjustment constants.
+    std::optional<uintptr_t> CalculateMethod1(const MemoryManager& pm, uintptr_t patternAddr, bool isGNames)
+    {
+        try {
+            uintptr_t step1OffsetAddr = patternAddr + (isGNames ? 3 : 1);
+            auto relOffset1 = pm.Read<int32_t>(step1OffsetAddr);
+            if (!relOffset1) return std::nullopt;
+            uintptr_t afterCall1 = step1OffsetAddr + sizeof(int32_t);
+            uintptr_t intermediate = afterCall1 + *relOffset1;
+            intermediate += isGNames ? 0x27 : 0x65;
+            uintptr_t step2OffsetAddr = intermediate + 3;
+            auto relOffset2 = pm.Read<int32_t>(step2OffsetAddr);
+            if (!relOffset2) return std::nullopt;
+            uintptr_t afterLea = step2OffsetAddr + sizeof(int32_t);
+            return afterLea + *relOffset2;
+        }
+        catch (const std::exception& e) {
+            Logger::Error("Scan Calc1 Exception for " +
+                          std::string(isGNames ? "GNames" : "GObjects") + ": " + e.what());
+            return std::nullopt;
+        }
+    }
+
+    // Resolve an address via Method 2: simple 7-byte RIP-relative instruction
+    // (e.g. 48 8B 05 XX XX XX XX).  Offset field starts at byte 3.
+    std::optional<uintptr_t> CalculateMethod2(const MemoryManager& pm, uintptr_t patternAddr)
+    {
+        try {
+            auto relOffset = pm.Read<int32_t>(patternAddr + 3);
+            if (!relOffset) return std::nullopt;
+            uintptr_t instrEnd = patternAddr + 7;
+            return instrEnd + *relOffset;
+        }
+        catch (const std::exception& e) {
+            Logger::Error("Scan Calc2 Exception: " + std::string(e.what()));
+            return std::nullopt;
+        }
+    }
+
+} // anonymous namespace
 
 namespace FunctionName {
     inline constexpr const char* BoostPickedUp = "Function TAGame.VehiclePickup_Boost_TA.Idle.EndState";
@@ -472,22 +565,91 @@ std::string RLSDK::DetectBuildType() {
     else { Logger::Warning("Could not determine build type from path '" + std::string(processPathRaw) + "'. Assuming 'epic'."); return "epic"; }
 }
 
-bool RLSDK::ResolveOffsets(size_t /*moduleSize*/) {
-    // GNames and GObjects addresses are hardcoded relative to module base.
-    // These offsets were determined for the current Rocket League build.
-    constexpr uintptr_t GNAMES_OFFSET   = 0x21CC7F0;
-    constexpr uintptr_t GOBJECTS_OFFSET = 0x2401690;
+bool RLSDK::ResolveOffsets(size_t moduleSize) {
+    std::optional<uintptr_t> gnamesAddrOpt;
+    std::optional<uintptr_t> gobjectsAddrOpt;
 
-    Logger::Info("RLSDK Resolve: Using hardcoded offsets:");
-    Logger::Info("  GNames   offset: " + Logger::to_hex(GNAMES_OFFSET) +
-                 " -> abs: " + Logger::to_hex(moduleBase_ + GNAMES_OFFSET));
-    Logger::Info("  GObjects offset: " + Logger::to_hex(GOBJECTS_OFFSET) +
-                 " -> abs: " + Logger::to_hex(moduleBase_ + GOBJECTS_OFFSET));
+    // ── Method 1: multi-step relative-call + LEA ─────────────────────
+    Logger::Info("RLSDK Resolve: Trying pattern scan Method 1...");
+    auto gnamesPat1 = PatternScan(memManager_, moduleBase_, moduleSize, SCAN_PATTERNS.at("GNames_1"),   "GNames_1");
+    if (gnamesPat1) {
+        gnamesAddrOpt = CalculateMethod1(memManager_, *gnamesPat1, true);
+        if (gnamesAddrOpt) Logger::Info("Found GNames via Method 1 at: "   + Logger::to_hex(*gnamesAddrOpt));
+    }
 
-    gnamesOffset_  = GNAMES_OFFSET;
-    gobjectsOffset_ = GOBJECTS_OFFSET;
+    auto gobjectsPat1 = PatternScan(memManager_, moduleBase_, moduleSize, SCAN_PATTERNS.at("GObjects_1"), "GObjects_1");
+    if (gobjectsPat1) {
+        gobjectsAddrOpt = CalculateMethod1(memManager_, *gobjectsPat1, false);
+        if (gobjectsAddrOpt) Logger::Info("Found GObjects via Method 1 at: " + Logger::to_hex(*gobjectsAddrOpt));
+    }
 
-    Logger::Info("RLSDK Resolve: Offsets set successfully.");
+    // ── Method 2: simple RIP-relative (fallback) ──────────────────────
+    if (!gnamesAddrOpt) {
+        Logger::Info("RLSDK Resolve: GNames Method 1 failed, trying Method 2 (GNames_2)...");
+        auto gnamesPat2 = PatternScan(memManager_, moduleBase_, moduleSize, SCAN_PATTERNS.at("GNames_2"), "GNames_2");
+        if (gnamesPat2) {
+            gnamesAddrOpt = CalculateMethod2(memManager_, *gnamesPat2);
+            if (gnamesAddrOpt) Logger::Info("Found GNames via Method 2 at: " + Logger::to_hex(*gnamesAddrOpt));
+        }
+    }
+
+    if (!gobjectsAddrOpt) {
+        Logger::Info("RLSDK Resolve: GObjects Method 1 failed, trying Method 2 (GObjects_2)...");
+        auto gobjectsPat2 = PatternScan(memManager_, moduleBase_, moduleSize, SCAN_PATTERNS.at("GObjects_2"), "GObjects_2");
+        if (gobjectsPat2) {
+            gobjectsAddrOpt = CalculateMethod2(memManager_, *gobjectsPat2);
+            if (gobjectsAddrOpt) Logger::Info("Found GObjects via Method 2 at: " + Logger::to_hex(*gobjectsAddrOpt));
+        }
+    }
+
+    // ── Hardcoded fallback (always applied as the authoritative value) ─
+    // These offsets are known-good for the current build and override any
+    // pattern-scan result.  Update them when the game patches.
+    Logger::Info("RLSDK Resolve: Applying hardcoded offsets (authoritative fallback)...");
+    gnamesAddrOpt   = moduleBase_ + 0x21CC7F0;
+    gobjectsAddrOpt = moduleBase_ + 0x2401690;
+
+    Logger::Info("  GNames   abs: " + Logger::to_hex(*gnamesAddrOpt));
+    Logger::Info("  GObjects abs: " + Logger::to_hex(*gobjectsAddrOpt));
+
+    if (!gnamesAddrOpt || !gobjectsAddrOpt) {
+        Logger::Error("RLSDK Resolve Error: Failed to resolve GNames/GObjects addresses.");
+        return false;
+    }
+
+    uintptr_t gnamesAddr   = *gnamesAddrOpt;
+    uintptr_t gobjectsAddr = *gobjectsAddrOpt;
+
+    // Verify the expected 0x48 byte gap between GNames and GObjects.
+    // If it doesn't match, adjust GNames so the invariant holds.
+    constexpr uintptr_t EXPECTED_DIFF = 0x48;
+    uintptr_t currentDiff = (gobjectsAddr > gnamesAddr)
+                            ? (gobjectsAddr - gnamesAddr)
+                            : (gnamesAddr   - gobjectsAddr);
+
+    if (currentDiff != EXPECTED_DIFF) {
+        Logger::Warning("RLSDK Resolve: GObjects-GNames diff is " + Logger::to_hex(currentDiff) +
+                        ", expected " + Logger::to_hex(EXPECTED_DIFF) + ". Adjusting GNames.");
+        if (gobjectsAddr > EXPECTED_DIFF) {
+            gnamesAddr = gobjectsAddr - EXPECTED_DIFF;
+            Logger::Info("RLSDK Resolve: Adjusted GNames abs: " + Logger::to_hex(gnamesAddr));
+        } else {
+            Logger::Error("RLSDK Resolve Error: Cannot adjust GNames – GObjects address too low (" +
+                          Logger::to_hex(gobjectsAddr) + ").");
+            return false;
+        }
+    }
+
+    if (gnamesAddr < moduleBase_ || gobjectsAddr < moduleBase_) {
+        Logger::Error("RLSDK Resolve Error: Addresses are below module base.");
+        return false;
+    }
+
+    gnamesOffset_   = gnamesAddr   - moduleBase_;
+    gobjectsOffset_ = gobjectsAddr - moduleBase_;
+
+    Logger::Info("RLSDK Resolve: Final offsets – GNames=" + Logger::to_hex(gnamesOffset_) +
+                 ", GObjects=" + Logger::to_hex(gobjectsOffset_));
     return true;
 }
 
