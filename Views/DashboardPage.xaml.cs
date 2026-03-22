@@ -186,11 +186,16 @@ namespace YxllowLoader
         [DllImport("kernel32.dll")]
         static extern bool CloseHandle(IntPtr handle);
 
-        private const string DllFileName = "yxllow.dll";
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool GetExitCodeThread(IntPtr hThread, out uint lpExitCode);
+
+        private const string DllFileName = "sdk.dll";
 
         private static bool InjectInternal(int pid)
         {
-            // Placeholder — in production supply a real DLL path from config/license.
             var assemblyDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             if (assemblyDir is null)
                 return false;
@@ -208,17 +213,31 @@ namespace YxllowLoader
             var hProc = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
             if (hProc == IntPtr.Zero) return false;
 
-            var pathBytes = System.Text.Encoding.Default.GetBytes(dllPath + "\0");
+            // Use Unicode (UTF-16 LE) path bytes and LoadLibraryW so the path
+            // is correctly interpreted regardless of the system ANSI code page.
+            var pathBytes = System.Text.Encoding.Unicode.GetBytes(dllPath + "\0");
             var alloc = VirtualAllocEx(hProc, IntPtr.Zero, (uint)pathBytes.Length, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
             if (alloc == IntPtr.Zero) { CloseHandle(hProc); return false; }
 
             WriteProcessMemory(hProc, alloc, pathBytes, (uint)pathBytes.Length, out _);
 
-            var loadLib = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
+            var loadLib = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
             var thread = CreateRemoteThread(hProc, IntPtr.Zero, 0, loadLib, alloc, 0, out _);
 
+            bool success = false;
+            if (thread != IntPtr.Zero)
+            {
+                // Wait up to 5 s for LoadLibraryW to return, then check its exit
+                // code (the module handle) to confirm the DLL was actually loaded.
+                const uint WAIT_TIMEOUT_MS = 5000;
+                WaitForSingleObject(thread, WAIT_TIMEOUT_MS);
+                GetExitCodeThread(thread, out uint exitCode);
+                success = exitCode != 0;
+                CloseHandle(thread);
+            }
+
             CloseHandle(hProc);
-            return thread != IntPtr.Zero;
+            return success;
         }
 
         // ── Logout ─────────────────────────────────────────────────────
