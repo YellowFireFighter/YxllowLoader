@@ -6,13 +6,45 @@
     Loaded="Page_Loaded">
 
     <Page.Resources>
-        <!-- Cursor blink animation for the terminal prompt -->
+        <!-- Cursor blink animation for the upload prompt -->
         <Storyboard x:Name="CursorBlinkAnim" RepeatBehavior="Forever">
             <DoubleAnimation Storyboard.TargetName="TerminalCursor"
                              Storyboard.TargetProperty="Opacity"
                              From="1" To="0"
                              Duration="0:0:0.55"
                              AutoReverse="True"/>
+        </Storyboard>
+
+        <!-- Car pulse animation while uploading -->
+        <Storyboard x:Name="CarPulseAnim" RepeatBehavior="Forever" AutoReverse="True">
+            <DoubleAnimation Storyboard.TargetName="CarTransform"
+                             Storyboard.TargetProperty="ScaleX"
+                             From="1" To="1.1"
+                             Duration="0:0:0.7">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="CarTransform"
+                             Storyboard.TargetProperty="ScaleY"
+                             From="1" To="1.1"
+                             Duration="0:0:0.7">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Upload arrows pulse animation -->
+        <Storyboard x:Name="ArrowsAnim" RepeatBehavior="Forever" AutoReverse="True">
+            <DoubleAnimation Storyboard.TargetName="UploadArrows"
+                             Storyboard.TargetProperty="Opacity"
+                             From="0.15" To="0.9"
+                             Duration="0:0:0.45">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
         </Storyboard>
 
         <!-- Opening animation: fade in + gentle scale up -->
@@ -532,84 +564,166 @@
             <StackPanel HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         Spacing="20"
-                        MinWidth="420">
+                        MinWidth="480">
 
-                <!-- Terminal window chrome -->
+                <!-- Upload visualization card -->
                 <Border Background="#0D0D0D"
                         BorderBrush="#33FFC300"
                         BorderThickness="1"
-                        CornerRadius="10"
-                        Padding="0">
+                        CornerRadius="12"
+                        Padding="24,20">
+                    <StackPanel Spacing="16">
 
-                    <StackPanel>
-                        <!-- Title bar row -->
-                        <Border Background="#141414"
-                                CornerRadius="10,10,0,0"
-                                Padding="14,10">
+                        <!-- Header -->
+                        <StackPanel HorizontalAlignment="Center" Spacing="3">
+                            <TextBlock Text="⚡ UPLOADING TO ROCKET LEAGUE"
+                                       HorizontalAlignment="Center"
+                                       Foreground="#FFC300"
+                                       FontFamily="Segoe UI Variable Display"
+                                       FontWeight="Bold"
+                                       FontSize="15"
+                                       CharacterSpacing="80"/>
+                            <TextBlock Text="Beaming SDK directly into your car"
+                                       HorizontalAlignment="Center"
+                                       Foreground="#555555"
+                                       FontFamily="Segoe UI Variable Text"
+                                       FontSize="11"/>
+                        </StackPanel>
+
+                        <!-- Car upload visualizer -->
+                        <Border Background="#080808"
+                                CornerRadius="8"
+                                Height="130"
+                                ClipToBounds="True">
                             <Grid>
-                                <!-- Traffic lights -->
-                                <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Left">
-                                    <Ellipse Width="10" Height="10" Fill="#EF4444" Opacity="0.85"/>
-                                    <Ellipse Width="10" Height="10" Fill="#FFC300" Opacity="0.85"/>
-                                    <Ellipse Width="10" Height="10" Fill="#22C55E" Opacity="0.85"/>
+                                <!-- Code stream panel (left side) -->
+                                <StackPanel HorizontalAlignment="Left"
+                                            VerticalAlignment="Center"
+                                            Padding="14,0,0,0"
+                                            Spacing="4"
+                                            Width="155">
+                                    <Border Background="#0D1A0D" CornerRadius="4" Padding="8,6">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock x:Name="FlyCode1"
+                                                       Text=""
+                                                       Foreground="#44FF44"
+                                                       FontFamily="Consolas"
+                                                       FontSize="10"
+                                                       TextWrapping="NoWrap"/>
+                                            <TextBlock x:Name="FlyCode2"
+                                                       Text=""
+                                                       Foreground="#44FF44"
+                                                       FontFamily="Consolas"
+                                                       FontSize="10"
+                                                       TextWrapping="NoWrap"/>
+                                            <TextBlock x:Name="FlyCode3"
+                                                       Text=""
+                                                       Foreground="#88FF88"
+                                                       FontFamily="Consolas"
+                                                       FontSize="10"
+                                                       TextWrapping="NoWrap"/>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
-                                <!-- Title -->
-                                <TextBlock Text="yxllow // inject.exe"
+
+                                <!-- Upload arrows (center) -->
+                                <TextBlock x:Name="UploadArrows"
+                                           Text="══►══►══►"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
-                                           Foreground="#555555"
+                                           Foreground="#FFC300"
                                            FontFamily="Consolas"
-                                           FontSize="11"/>
+                                           FontSize="13"
+                                           Opacity="0.5"/>
+
+                                <!-- Rocket League car (right side) -->
+                                <StackPanel HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            Padding="0,0,14,0"
+                                            Spacing="0">
+                                    <TextBlock x:Name="BoostFlame"
+                                               Text=""
+                                               HorizontalAlignment="Left"
+                                               Margin="6,0,0,0"
+                                               FontSize="18"/>
+                                    <TextBlock Text="🏎️"
+                                               FontSize="48"
+                                               HorizontalAlignment="Center"
+                                               RenderTransformOrigin="0.5,0.5">
+                                        <TextBlock.RenderTransform>
+                                            <CompositeTransform x:Name="CarTransform"/>
+                                        </TextBlock.RenderTransform>
+                                    </TextBlock>
+                                </StackPanel>
                             </Grid>
                         </Border>
 
-                        <!-- Code output area -->
-                        <StackPanel Padding="18,14,18,18" Spacing="4">
-                            <TextBlock x:Name="CodeLine1" Text="" Foreground="#44FF44"
-                                       FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"/>
-                            <TextBlock x:Name="CodeLine2" Text="" Foreground="#44FF44"
-                                       FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"/>
-                            <TextBlock x:Name="CodeLine3" Text="" Foreground="#44FF44"
-                                       FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"/>
-                            <TextBlock x:Name="CodeLine4" Text="" Foreground="#FFC300"
-                                       FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"/>
-                            <TextBlock x:Name="CodeLine5" Text="" Foreground="#FFC300"
-                                       FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"/>
+                        <!-- Upload log (scrolling code lines) -->
+                        <Border Background="#080808" CornerRadius="6" Padding="14,10">
+                            <StackPanel Spacing="3">
+                                <TextBlock x:Name="CodeLine1" Text="" Foreground="#44FF44"
+                                           FontFamily="Consolas" FontSize="11" TextWrapping="NoWrap"/>
+                                <TextBlock x:Name="CodeLine2" Text="" Foreground="#44FF44"
+                                           FontFamily="Consolas" FontSize="11" TextWrapping="NoWrap"/>
+                                <TextBlock x:Name="CodeLine3" Text="" Foreground="#44FF44"
+                                           FontFamily="Consolas" FontSize="11" TextWrapping="NoWrap"/>
+                                <TextBlock x:Name="CodeLine4" Text="" Foreground="#FFC300"
+                                           FontFamily="Consolas" FontSize="11" TextWrapping="NoWrap"/>
+                                <TextBlock x:Name="CodeLine5" Text="" Foreground="#FFC300"
+                                           FontFamily="Consolas" FontSize="11" TextWrapping="NoWrap"/>
 
-                            <!-- Active prompt line with blinking cursor -->
-                            <StackPanel Orientation="Horizontal" Spacing="0" Margin="0,4,0,0">
-                                <TextBlock x:Name="CodePrompt"
-                                           Text="&gt; "
-                                           Foreground="#FFC300"
-                                           FontFamily="Consolas"
-                                           FontSize="12"/>
-                                <TextBlock x:Name="CodeCurrent"
-                                           Text=""
-                                           Foreground="#FFC300"
-                                           FontFamily="Consolas"
-                                           FontSize="12"/>
-                                <TextBlock x:Name="TerminalCursor"
-                                           Text="█"
-                                           Foreground="#FFC300"
-                                           FontFamily="Consolas"
-                                           FontSize="12"/>
+                                <!-- Active prompt line with blinking cursor -->
+                                <StackPanel Orientation="Horizontal" Spacing="0" Margin="0,4,0,0">
+                                    <TextBlock x:Name="CodePrompt"
+                                               Text="&gt; "
+                                               Foreground="#FFC300"
+                                               FontFamily="Consolas"
+                                               FontSize="11"/>
+                                    <TextBlock x:Name="CodeCurrent"
+                                               Text=""
+                                               Foreground="#FFC300"
+                                               FontFamily="Consolas"
+                                               FontSize="11"/>
+                                    <TextBlock x:Name="TerminalCursor"
+                                               Text="█"
+                                               Foreground="#FFC300"
+                                               FontFamily="Consolas"
+                                               FontSize="11"/>
+                                </StackPanel>
                             </StackPanel>
+                        </Border>
 
-                            <!-- Progress bar -->
+                        <!-- Boost meter -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="BOOST"
+                                       Foreground="#FFC300"
+                                       FontFamily="Segoe UI Variable Display"
+                                       FontWeight="Bold"
+                                       FontSize="11"
+                                       CharacterSpacing="80"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0"/>
                             <ProgressBar x:Name="InjectProgressBar"
+                                         Grid.Column="1"
                                          Minimum="0" Maximum="100" Value="0"
                                          Foreground="{StaticResource BrandYellowBrush}"
                                          Background="#1A1A1A"
-                                         Height="2"
-                                         Margin="0,10,0,0"/>
-                        </StackPanel>
+                                         Height="10"
+                                         VerticalAlignment="Center"/>
+                        </Grid>
+
                     </StackPanel>
                 </Border>
 
-                <!-- Status text below terminal -->
+                <!-- Status text below card -->
                 <StackPanel HorizontalAlignment="Center" Spacing="4">
                     <TextBlock x:Name="OverlayStatus"
-                               Text="Injecting..."
+                               Text="Uploading..."
                                HorizontalAlignment="Center"
                                Foreground="White"
                                FontFamily="Segoe UI Variable Display"

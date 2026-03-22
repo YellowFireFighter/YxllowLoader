@@ -180,6 +180,8 @@ namespace YxllowLoader
                 {
                     ResetCodeLines();
                     CursorBlinkAnim.Begin();
+                    CarPulseAnim.Begin();
+                    ArrowsAnim.Begin();
                     _codeAnimCts = new CancellationTokenSource();
                     _codeAnimTask = RunCodeAnimationAsync(_codeAnimCts.Token);
                 }
@@ -190,6 +192,8 @@ namespace YxllowLoader
                 _codeAnimCts = null;
                 InjectOverlay.Visibility = Visibility.Collapsed;
                 CursorBlinkAnim.Stop();
+                CarPulseAnim.Stop();
+                ArrowsAnim.Stop();
                 ResetCodeLines();
             }
         }
@@ -199,26 +203,34 @@ namespace YxllowLoader
             const int TypingDelayMs       = 22;   // ms between each typed character
             const int LineCompletionPause = 120;  // ms pause after a line finishes typing
 
-            var rng = new Random();
-
-            // Fake memory addresses (randomised per injection attempt)
-            string Hex(int v) => $"0x{v:X8}";
-            int fakeHandle  = rng.Next(0x00010000, 0x0FFF0000) & ~0xF;
-            int fakeAlloc   = rng.Next(0x10000000, 0x7FFF0000) & ~0xFF;
-            int fakeThread  = rng.Next(0x00000100, 0x00FFFF00) & ~0x3;
-
+            // Upload log messages — themed around beaming code into the car
             var lines = new[]
             {
-                $"> OpenProcess(PROCESS_ALL_ACCESS, pid)",
-                $"> handle  = {Hex(fakeHandle)}",
-                $"> VirtualAllocEx({Hex(fakeHandle)}, NULL, pathLen)",
-                $"> addr    = {Hex(fakeAlloc)}",
-                $"> WriteProcessMemory({Hex(fakeHandle)}, {Hex(fakeAlloc)}, ...)",
-                $"> bytes written: ok",
-                $"> GetProcAddress(kernel32, \"LoadLibraryA\")",
-                $"> CreateRemoteThread({Hex(fakeHandle)}, ..., LoadLibraryA)",
-                $"> thread  = {Hex(fakeThread)}",
-                $"> injection complete.",
+                "> Locating Rocket League process...",
+                "> Attaching to boost controller...",
+                "> Allocating memory in car ECU...",
+                "> Uploading SDK payload...",
+                "> Writing boost modules to car...",
+                "> Verifying data transfer...",
+                "> Loading SDK libraries...",
+                "> Initializing boost hooks...",
+                "> Syncing with car telemetry...",
+                "> Upload complete. Boost activated!",
+            };
+
+            // Short code snippets shown in the car upload visualizer
+            var snippets = new[]
+            {
+                new[] { "LoadLibraryA()", "sdk.init()", "0xDEADBEEF" },
+                new[] { "boost.attach()", "rl_hook()", "0x4F50454E" },
+                new[] { "VAlloc(0x100)", "WriteProc()", "RemoteThread" },
+                new[] { "sdk.inject()", "boost.exe", "car.patch()" },
+                new[] { "modules.load()", "hooks.apply()", "mem.write()" },
+                new[] { "verify.crc()", "checksum ok", "transfer done" },
+                new[] { "lib.load()", "symbols.map()", "entry.find()" },
+                new[] { "hook.init()", "boost_fn()", "rl.attach()" },
+                new[] { "telemetry()", "car.sync()", "stats.link()" },
+                new[] { "✓ SDK ready", "✓ boost live", "✓ car online" },
             };
 
             var slots = new[] { CodeLine1, CodeLine2, CodeLine3, CodeLine4, CodeLine5 };
@@ -231,6 +243,16 @@ namespace YxllowLoader
                 string line = lines[i];
                 // Remove leading "> " for the prompt — CodePrompt already shows "> "
                 string content = line.StartsWith("> ") ? line[2..] : line;
+
+                // Update the flying code snippets in the car visualizer
+                var snip = snippets[i];
+                FlyCode1.Text = snip[0];
+                FlyCode2.Text = snip[1];
+                FlyCode3.Text = snip[2];
+
+                // Show boost flame on the final step
+                if (i == lines.Length - 1)
+                    BoostFlame.Text = "🔥";
 
                 // Type out the current line
                 CodeCurrent.Text = "";
@@ -251,7 +273,7 @@ namespace YxllowLoader
                 historyIdx++;
                 CodeCurrent.Text = "";
 
-                // Update progress bar
+                // Update boost meter
                 InjectProgressBar.Value = (i + 1) * 100.0 / lines.Length;
             }
         }
@@ -264,6 +286,10 @@ namespace YxllowLoader
             CodeLine4.Text = "";
             CodeLine5.Text = "";
             CodeCurrent.Text = "";
+            FlyCode1.Text = "";
+            FlyCode2.Text = "";
+            FlyCode3.Text = "";
+            BoostFlame.Text = "";
             InjectProgressBar.Value = 0;
         }
 
