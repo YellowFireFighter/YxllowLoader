@@ -532,6 +532,106 @@ namespace SDK {
         return GetFString(pm, Address + Offset_TeamName);
     }
 
+    // --- AVehicle Method Definitions ---
+
+    uintptr_t AVehicle::GetPRIAddress(const MemoryManager& pm) const {
+        if (!IsValid()) return 0;
+        auto addrOpt = pm.Read<uintptr_t>(Address + Offset_PRI);
+        return addrOpt.value_or(0);
+    }
+
+    VehicleInputsData AVehicle::GetInputs(const MemoryManager& pm) const {
+        if (!IsValid()) return {};
+        return pm.Read<VehicleInputsData>(Address + Offset_ReplicatedInputs).value_or(VehicleInputsData{});
+    }
+
+    uintptr_t AVehicle::GetVehicleSimAddress(const MemoryManager& pm) const {
+        if (!IsValid()) return 0;
+        return pm.Read<uintptr_t>(Address + Offset_VehicleSim).value_or(0);
+    }
+
+    UVehicleSim AVehicle::GetVehicleSim(const MemoryManager& pm) const {
+        return UVehicleSim(GetVehicleSimAddress(pm));
+    }
+
+    bool AVehicle::HasWheelContact(const MemoryManager& pm) const {
+        if (!IsValid()) return false;
+        UVehicleSim sim = GetVehicleSim(pm);
+        if (!sim.IsValid()) return false;
+        auto wheels = sim.GetWheels(pm);
+        if (wheels.empty()) return false;
+        for (const auto& wheel : wheels) {
+            FWheelContactData contact = wheel.GetContactData(pm);
+            if (!contact.HasContact()) return false;
+        }
+        return true;
+    }
+
+    // Internal helper macro for AVehicle flags
+#define GET_VEHICLE_FLAG_IMPL(pm, addr, offset, bit) \
+    (addr != 0 ? ((pm.Read<uint32_t>(addr + offset).value_or(0) >> bit) & 1) : false)
+
+    bool AVehicle::IsDriving(const MemoryManager& pm) const { return GET_VEHICLE_FLAG_IMPL(pm, Address, Offset_Flags, 0); }
+    bool AVehicle::IsJumped(const MemoryManager& pm) const { return GET_VEHICLE_FLAG_IMPL(pm, Address, Offset_Flags, 1); }
+    bool AVehicle::IsDoubleJumped(const MemoryManager& pm) const { return GET_VEHICLE_FLAG_IMPL(pm, Address, Offset_Flags, 2); }
+    bool AVehicle::IsOnGround(const MemoryManager& pm) const { return GET_VEHICLE_FLAG_IMPL(pm, Address, Offset_Flags, 3); }
+    bool AVehicle::IsSupersonic(const MemoryManager& pm) const { return GET_VEHICLE_FLAG_IMPL(pm, Address, Offset_Flags, 4); }
+    bool AVehicle::IsPodiumMode(const MemoryManager& pm) const { return GET_VEHICLE_FLAG_IMPL(pm, Address, Offset_Flags, 5); }
+    bool AVehicle::HasPostMatchCelebration(const MemoryManager& pm) const { return GET_VEHICLE_FLAG_IMPL(pm, Address, Offset_Flags, 6); }
+
+#undef GET_VEHICLE_FLAG_IMPL
+
+
+    // --- UVehicleSim Method Definitions ---
+
+    std::vector<UWheel> UVehicleSim::GetWheels(const MemoryManager& pm) const {
+        if (!IsValid()) return {};
+        return GetTArrayItems<UWheel>(pm, Address + Offset_Wheels);
+    }
+
+    uintptr_t UVehicleSim::GetVehicleAddress(const MemoryManager& pm) const {
+        if (!IsValid()) return 0;
+        return pm.Read<uintptr_t>(Address + Offset_Vehicle).value_or(0);
+    }
+
+    AVehicle UVehicleSim::GetVehicle(const MemoryManager& pm) const {
+        return AVehicle(GetVehicleAddress(pm));
+    }
+
+    uintptr_t UVehicleSim::GetCarAddress(const MemoryManager& pm) const {
+        if (!IsValid()) return 0;
+        return pm.Read<uintptr_t>(Address + Offset_Car).value_or(0);
+    }
+
+    ACar UVehicleSim::GetCar(const MemoryManager& pm) const {
+        return ACar(GetCarAddress(pm));
+    }
+
+
+    // --- UWheel Method Definitions ---
+
+    FWheelContactData UWheel::GetContactData(const MemoryManager& pm) const {
+        if (!IsValid()) return {};
+        return pm.Read<FWheelContactData>(Address + Offset_ContactData).value_or(FWheelContactData{});
+    }
+
+    int32_t UWheel::GetWheelIndex(const MemoryManager& pm) const {
+        if (!IsValid()) return -1;
+        return pm.Read<int32_t>(Address + Offset_WheelIndex).value_or(-1);
+    }
+
+
+    // --- ACar Method Definitions ---
+
+    uintptr_t ACar::GetAttackerPRIAddress(const MemoryManager& pm) const {
+        if (!IsValid()) return 0;
+        return pm.Read<uintptr_t>(Address + Offset_AttackerPRI).value_or(0);
+    }
+
+    APRI ACar::GetAttackerPRI(const MemoryManager& pm) const {
+        return APRI(GetAttackerPRIAddress(pm));
+    }
+
     // ... rest of ATeamInfo methods (GetSize might still be problematic)
     int32_t ATeamInfo::GetSize(const MemoryManager& pm) const {
         // ATeamInfo typically doesn't store size directly.
