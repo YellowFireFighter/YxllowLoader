@@ -6,37 +6,13 @@
     Loaded="Page_Loaded">
 
     <Page.Resources>
-        <!-- Inject overlay animation: three rings + pulsing center -->
-        <Storyboard x:Name="InjectSpinAnim" RepeatBehavior="Forever">
-            <!-- Outer ring: slow clockwise, 3 s -->
-            <DoubleAnimation Storyboard.TargetName="Ring1Rotate"
-                             Storyboard.TargetProperty="Angle"
-                             From="0" To="360"
-                             Duration="0:0:3"/>
-            <!-- Middle ring: medium counter-clockwise, 2 s -->
-            <DoubleAnimation Storyboard.TargetName="Ring2Rotate"
-                             Storyboard.TargetProperty="Angle"
-                             From="0" To="-360"
-                             Duration="0:0:2"/>
-            <!-- Inner filled square: pulse scale, 0.9 s auto-reverse -->
-            <DoubleAnimation Storyboard.TargetName="Ring3Pulse"
-                             Storyboard.TargetProperty="ScaleX"
-                             From="0.75" To="1.0"
-                             Duration="0:0:0.9"
-                             AutoReverse="True">
-                <DoubleAnimation.EasingFunction>
-                    <SineEase EasingMode="EaseInOut"/>
-                </DoubleAnimation.EasingFunction>
-            </DoubleAnimation>
-            <DoubleAnimation Storyboard.TargetName="Ring3Pulse"
-                             Storyboard.TargetProperty="ScaleY"
-                             From="0.75" To="1.0"
-                             Duration="0:0:0.9"
-                             AutoReverse="True">
-                <DoubleAnimation.EasingFunction>
-                    <SineEase EasingMode="EaseInOut"/>
-                </DoubleAnimation.EasingFunction>
-            </DoubleAnimation>
+        <!-- Cursor blink animation for the terminal prompt -->
+        <Storyboard x:Name="CursorBlinkAnim" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetName="TerminalCursor"
+                             Storyboard.TargetProperty="Opacity"
+                             From="1" To="0"
+                             Duration="0:0:0.55"
+                             AutoReverse="True"/>
         </Storyboard>
 
         <!-- Opening animation: fade in + gentle scale up -->
@@ -195,182 +171,236 @@
                      ACCOUNT VIEW
                 ═══════════════════════════════════════════════════════ -->
                 <Grid x:Name="AccountView" Visibility="Collapsed">
-                    <StackPanel HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Spacing="28"
-                                MaxWidth="480">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="32,24">
 
-                        <!-- Heading -->
-                        <StackPanel HorizontalAlignment="Center" Spacing="4">
-                            <TextBlock Text="ACCOUNT DETAILS"
-                                       HorizontalAlignment="Center"
-                                       Foreground="{StaticResource BrandMutedBrush}"
-                                       FontFamily="Segoe UI Variable Display"
-                                       FontWeight="SemiBold"
-                                       FontSize="11"
-                                       CharacterSpacing="250"/>
-                            <!-- Avatar circle -->
-                            <Border Width="64" Height="64"
-                                    CornerRadius="32"
-                                    Background="{StaticResource BrandYellowBrush}"
-                                    HorizontalAlignment="Center"
-                                    Margin="0,16,0,0">
-                                <TextBlock x:Name="AvatarInitial"
-                                           Text="?"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
-                                           FontFamily="Segoe UI Variable Display"
-                                           FontWeight="Bold"
-                                           FontSize="26"
-                                           Foreground="#0A0A0A"/>
-                            </Border>
-                            <TextBlock x:Name="AccountUsername"
-                                       Text="..."
-                                       HorizontalAlignment="Center"
-                                       Foreground="{StaticResource BrandTextBrush}"
-                                       FontFamily="Segoe UI Variable Display"
-                                       FontWeight="SemiBold"
-                                       FontSize="20"
-                                       Margin="0,10,0,0"/>
-                        </StackPanel>
+                        <StackPanel HorizontalAlignment="Center"
+                                    MaxWidth="500"
+                                    Spacing="14">
 
-                        <!-- Info cards grid -->
-                        <Grid ColumnSpacing="14" RowSpacing="14">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <!-- Plan -->
-                            <Border Grid.Column="0" Grid.Row="0"
+                            <!-- ── Profile header card ───────────────────────── -->
+                            <Border CornerRadius="12"
+                                    Padding="0"
                                     Background="{StaticResource BrandSurfaceBrush}"
+                                    BorderBrush="{StaticResource BrandBorderBrush}"
+                                    BorderThickness="1">
+                                <Grid>
+                                    <!-- Gradient banner strip -->
+                                    <Border CornerRadius="12,12,0,0" Height="72"
+                                            VerticalAlignment="Top">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#35FFC300" Offset="0"/>
+                                                <GradientStop Color="#18FFC300" Offset="0.6"/>
+                                                <GradientStop Color="#06080808" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <!-- Decorative Y mark top-right -->
+                                        <TextBlock Text="Y"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,24,0"
+                                                   Foreground="#18FFC300"
+                                                   FontFamily="Segoe UI Variable Display"
+                                                   FontWeight="Black"
+                                                   FontSize="56"/>
+                                    </Border>
+
+                                    <!-- Profile info below banner -->
+                                    <StackPanel Margin="24,44,24,20" Spacing="0">
+
+                                        <!-- Avatar (overlaps the banner) -->
+                                        <Border Width="72" Height="72"
+                                                CornerRadius="36"
+                                                Background="{StaticResource BrandYellowBrush}"
+                                                BorderBrush="{StaticResource BrandSurfaceBrush}"
+                                                BorderThickness="4"
+                                                HorizontalAlignment="Left">
+                                            <TextBlock x:Name="AvatarInitial"
+                                                       Text="?"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI Variable Display"
+                                                       FontWeight="Bold"
+                                                       FontSize="30"
+                                                       Foreground="#0A0A0A"/>
+                                        </Border>
+
+                                        <!-- Username + plan badge -->
+                                        <StackPanel Spacing="6" Margin="0,10,0,0">
+                                            <TextBlock x:Name="AccountUsername"
+                                                       Text="..."
+                                                       Foreground="{StaticResource BrandTextBrush}"
+                                                       FontFamily="Segoe UI Variable Display"
+                                                       FontWeight="Bold"
+                                                       FontSize="22"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <!-- Plan badge -->
+                                                <Border Background="#22FFC300"
+                                                        BorderBrush="#44FFC300"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Padding="10,3">
+                                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                                        <FontIcon Glyph="&#xE7BF;"
+                                                                  FontSize="10"
+                                                                  Foreground="{StaticResource BrandYellowBrush}"/>
+                                                        <TextBlock x:Name="CardPlan"
+                                                                   Text="..."
+                                                                   Foreground="{StaticResource BrandYellowBrush}"
+                                                                   FontFamily="Segoe UI Variable Display"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="11"
+                                                                   CharacterSpacing="80"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- ── Subscription cards (2-col) ──────────────── -->
+                            <Grid ColumnSpacing="12" RowSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Expires -->
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource BrandSurfaceBrush}"
+                                        BorderBrush="{StaticResource BrandBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        Padding="18,16"
+                                        RenderTransformOrigin="0.5,0.5"
+                                        PointerEntered="StatCard_PointerEntered"
+                                        PointerExited="StatCard_PointerExited">
+                                    <Border.RenderTransform>
+                                        <CompositeTransform/>
+                                    </Border.RenderTransform>
+                                    <StackPanel Spacing="8">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <FontIcon Glyph="&#xE787;"
+                                                      FontSize="13"
+                                                      Foreground="{StaticResource BrandMutedBrush}"/>
+                                            <TextBlock Text="EXPIRES"
+                                                       Foreground="{StaticResource BrandMutedBrush}"
+                                                       FontFamily="Segoe UI Variable Display"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="10"
+                                                       CharacterSpacing="180"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="CardExpiry"
+                                                   Text="..."
+                                                   Foreground="{StaticResource BrandTextBrush}"
+                                                   FontFamily="Segoe UI Variable Display"
+                                                   FontWeight="Bold"
+                                                   FontSize="16"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Days left -->
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource BrandSurfaceBrush}"
+                                        BorderBrush="{StaticResource BrandBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        Padding="18,16"
+                                        RenderTransformOrigin="0.5,0.5"
+                                        PointerEntered="StatCard_PointerEntered"
+                                        PointerExited="StatCard_PointerExited">
+                                    <Border.RenderTransform>
+                                        <CompositeTransform/>
+                                    </Border.RenderTransform>
+                                    <StackPanel Spacing="8">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <FontIcon Glyph="&#xE823;"
+                                                      FontSize="13"
+                                                      Foreground="{StaticResource BrandMutedBrush}"/>
+                                            <TextBlock Text="DAYS LEFT"
+                                                       Foreground="{StaticResource BrandMutedBrush}"
+                                                       FontFamily="Segoe UI Variable Display"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="10"
+                                                       CharacterSpacing="180"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="CardDaysLeft"
+                                                   Text="..."
+                                                   Foreground="{StaticResource BrandTextBrush}"
+                                                   FontFamily="Segoe UI Variable Display"
+                                                   FontWeight="Bold"
+                                                   FontSize="16"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- ── HWID card (full width) ────────────────── -->
+                            <Border Background="{StaticResource BrandSurfaceBrush}"
                                     BorderBrush="{StaticResource BrandBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="10"
-                                    Padding="20,16"
+                                    Padding="18,16"
                                     RenderTransformOrigin="0.5,0.5"
                                     PointerEntered="StatCard_PointerEntered"
                                     PointerExited="StatCard_PointerExited">
                                 <Border.RenderTransform>
                                     <CompositeTransform/>
                                 </Border.RenderTransform>
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="PLAN"
-                                               Foreground="{StaticResource BrandMutedBrush}"
-                                               FontFamily="Segoe UI Variable Display"
-                                               FontWeight="SemiBold"
-                                               FontSize="10"
-                                               CharacterSpacing="200"/>
-                                    <TextBlock x:Name="CardPlan"
-                                               Text="..."
-                                               Foreground="{StaticResource BrandYellowBrush}"
-                                               FontFamily="Segoe UI Variable Display"
-                                               FontWeight="Bold"
-                                               FontSize="18"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Expires -->
-                            <Border Grid.Column="1" Grid.Row="0"
-                                    Background="{StaticResource BrandSurfaceBrush}"
-                                    BorderBrush="{StaticResource BrandBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="20,16"
-                                    RenderTransformOrigin="0.5,0.5"
-                                    PointerEntered="StatCard_PointerEntered"
-                                    PointerExited="StatCard_PointerExited">
-                                <Border.RenderTransform>
-                                    <CompositeTransform/>
-                                </Border.RenderTransform>
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="EXPIRES"
-                                               Foreground="{StaticResource BrandMutedBrush}"
-                                               FontFamily="Segoe UI Variable Display"
-                                               FontWeight="SemiBold"
-                                               FontSize="10"
-                                               CharacterSpacing="200"/>
-                                    <TextBlock x:Name="CardExpiry"
-                                               Text="..."
-                                               Foreground="{StaticResource BrandTextBrush}"
-                                               FontFamily="Segoe UI Variable Display"
-                                               FontWeight="Bold"
-                                               FontSize="18"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Days left -->
-                            <Border Grid.Column="0" Grid.Row="1"
-                                    Background="{StaticResource BrandSurfaceBrush}"
-                                    BorderBrush="{StaticResource BrandBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="20,16"
-                                    RenderTransformOrigin="0.5,0.5"
-                                    PointerEntered="StatCard_PointerEntered"
-                                    PointerExited="StatCard_PointerExited">
-                                <Border.RenderTransform>
-                                    <CompositeTransform/>
-                                </Border.RenderTransform>
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="DAYS LEFT"
-                                               Foreground="{StaticResource BrandMutedBrush}"
-                                               FontFamily="Segoe UI Variable Display"
-                                               FontWeight="SemiBold"
-                                               FontSize="10"
-                                               CharacterSpacing="200"/>
-                                    <TextBlock x:Name="CardDaysLeft"
-                                               Text="..."
-                                               Foreground="{StaticResource BrandTextBrush}"
-                                               FontFamily="Segoe UI Variable Display"
-                                               FontWeight="Bold"
-                                               FontSize="18"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- HWID -->
-                            <Border Grid.Column="1" Grid.Row="1"
-                                    Background="{StaticResource BrandSurfaceBrush}"
-                                    BorderBrush="{StaticResource BrandBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="20,16"
-                                    RenderTransformOrigin="0.5,0.5"
-                                    PointerEntered="StatCard_PointerEntered"
-                                    PointerExited="StatCard_PointerExited">
-                                <Border.RenderTransform>
-                                    <CompositeTransform/>
-                                </Border.RenderTransform>
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="HWID"
-                                               Foreground="{StaticResource BrandMutedBrush}"
-                                               FontFamily="Segoe UI Variable Display"
-                                               FontWeight="SemiBold"
-                                               FontSize="10"
-                                               CharacterSpacing="200"/>
-                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                        <Ellipse x:Name="HwidDot"
-                                                 Width="8" Height="8"
-                                                 Fill="{StaticResource BrandSuccessBrush}"
-                                                 VerticalAlignment="Center"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Spacing="8">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <FontIcon Glyph="&#xE72E;"
+                                                      FontSize="13"
+                                                      Foreground="{StaticResource BrandMutedBrush}"/>
+                                            <TextBlock Text="HARDWARE ID"
+                                                       Foreground="{StaticResource BrandMutedBrush}"
+                                                       FontFamily="Segoe UI Variable Display"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="10"
+                                                       CharacterSpacing="180"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
                                         <TextBlock x:Name="CardHwid"
                                                    Text="..."
                                                    Foreground="{StaticResource BrandTextBrush}"
                                                    FontFamily="Segoe UI Variable Display"
                                                    FontWeight="Bold"
-                                                   FontSize="18"
-                                                   VerticalAlignment="Center"/>
+                                                   FontSize="16"/>
                                     </StackPanel>
-                                </StackPanel>
+                                    <!-- Status indicator pill -->
+                                    <Border Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Padding="10,5"
+                                            CornerRadius="20">
+                                        <Border.Background>
+                                            <SolidColorBrush x:Name="HwidPillBg" Color="#1A22C55E"/>
+                                        </Border.Background>
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Ellipse x:Name="HwidDot"
+                                                     Width="7" Height="7"
+                                                     Fill="{StaticResource BrandSuccessBrush}"
+                                                     VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="HwidStatusText"
+                                                       Text="Verified"
+                                                       Foreground="{StaticResource BrandSuccessBrush}"
+                                                       FontFamily="Segoe UI Variable Display"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="11"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
                             </Border>
 
-                        </Grid>
-
-                    </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
 
             </Grid>
@@ -498,87 +528,100 @@
         <!-- ── Inject overlay (covers entire UI during injection) ────────── -->
         <Grid x:Name="InjectOverlay"
               Visibility="Collapsed"
-              Background="#CC000000">
+              Background="#D9000000">
             <StackPanel HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Spacing="28">
+                        Spacing="20"
+                        MinWidth="420">
 
-                <!-- Modern three-ring spinner -->
-                <Grid Width="120" Height="120" HorizontalAlignment="Center">
+                <!-- Terminal window chrome -->
+                <Border Background="#0D0D0D"
+                        BorderBrush="#33FFC300"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="0">
 
-                    <!-- Outer ring with rotation indicator stripe -->
-                    <Border Width="112" Height="112"
-                            BorderBrush="{StaticResource BrandYellowBrush}"
-                            BorderThickness="2.5"
-                            CornerRadius="14"
-                            RenderTransformOrigin="0.5,0.5">
-                        <Border.RenderTransform>
-                            <RotateTransform x:Name="Ring1Rotate"/>
-                        </Border.RenderTransform>
-                        <!-- Indicator stripe so rotation is visible -->
-                        <Border Width="22" Height="3"
-                                Background="{StaticResource BrandYellowBrush}"
-                                CornerRadius="1.5"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Top"
-                                Margin="0,3,0,0"/>
-                    </Border>
+                    <StackPanel>
+                        <!-- Title bar row -->
+                        <Border Background="#141414"
+                                CornerRadius="10,10,0,0"
+                                Padding="14,10">
+                            <Grid>
+                                <!-- Traffic lights -->
+                                <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Left">
+                                    <Ellipse Width="10" Height="10" Fill="#EF4444" Opacity="0.85"/>
+                                    <Ellipse Width="10" Height="10" Fill="#FFC300" Opacity="0.85"/>
+                                    <Ellipse Width="10" Height="10" Fill="#22C55E" Opacity="0.85"/>
+                                </StackPanel>
+                                <!-- Title -->
+                                <TextBlock Text="yxllow // inject.exe"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Foreground="#555555"
+                                           FontFamily="Consolas"
+                                           FontSize="11"/>
+                            </Grid>
+                        </Border>
 
-                    <!-- Middle ring -->
-                    <Border Width="74" Height="74"
-                            BorderBrush="{StaticResource BrandYellowBrush}"
-                            BorderThickness="2"
-                            CornerRadius="9"
-                            Opacity="0.7"
-                            RenderTransformOrigin="0.5,0.5"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
-                        <Border.RenderTransform>
-                            <RotateTransform x:Name="Ring2Rotate"/>
-                        </Border.RenderTransform>
-                        <Border Width="14" Height="2.5"
-                                Background="{StaticResource BrandYellowBrush}"
-                                CornerRadius="1.25"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Top"
-                                Margin="0,2,0,0"/>
-                    </Border>
+                        <!-- Code output area -->
+                        <StackPanel Padding="18,14,18,18" Spacing="4">
+                            <TextBlock x:Name="CodeLine1" Text="" Foreground="#44FF44"
+                                       FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"/>
+                            <TextBlock x:Name="CodeLine2" Text="" Foreground="#44FF44"
+                                       FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"/>
+                            <TextBlock x:Name="CodeLine3" Text="" Foreground="#44FF44"
+                                       FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"/>
+                            <TextBlock x:Name="CodeLine4" Text="" Foreground="#FFC300"
+                                       FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"/>
+                            <TextBlock x:Name="CodeLine5" Text="" Foreground="#FFC300"
+                                       FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"/>
 
-                    <!-- Inner pulsing filled square -->
-                    <Border Width="36" Height="36"
-                            Background="{StaticResource BrandYellowBrush}"
-                            CornerRadius="6"
-                            Opacity="0.95"
-                            RenderTransformOrigin="0.5,0.5"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
-                        <Border.RenderTransform>
-                            <CompositeTransform x:Name="Ring3Pulse"/>
-                        </Border.RenderTransform>
-                    </Border>
+                            <!-- Active prompt line with blinking cursor -->
+                            <StackPanel Orientation="Horizontal" Spacing="0" Margin="0,4,0,0">
+                                <TextBlock x:Name="CodePrompt"
+                                           Text="&gt; "
+                                           Foreground="#FFC300"
+                                           FontFamily="Consolas"
+                                           FontSize="12"/>
+                                <TextBlock x:Name="CodeCurrent"
+                                           Text=""
+                                           Foreground="#FFC300"
+                                           FontFamily="Consolas"
+                                           FontSize="12"/>
+                                <TextBlock x:Name="TerminalCursor"
+                                           Text="█"
+                                           Foreground="#FFC300"
+                                           FontFamily="Consolas"
+                                           FontSize="12"/>
+                            </StackPanel>
 
-                    <!-- Center bright dot -->
-                    <Ellipse Width="8" Height="8"
-                             Fill="White"
-                             Opacity="0.9"
-                             HorizontalAlignment="Center"
-                             VerticalAlignment="Center"/>
-                </Grid>
+                            <!-- Progress bar -->
+                            <ProgressBar x:Name="InjectProgressBar"
+                                         Minimum="0" Maximum="100" Value="0"
+                                         Foreground="{StaticResource BrandYellowBrush}"
+                                         Background="#1A1A1A"
+                                         Height="2"
+                                         Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
 
-                <StackPanel HorizontalAlignment="Center" Spacing="8">
+                <!-- Status text below terminal -->
+                <StackPanel HorizontalAlignment="Center" Spacing="4">
                     <TextBlock x:Name="OverlayStatus"
                                Text="Injecting..."
                                HorizontalAlignment="Center"
                                Foreground="White"
                                FontFamily="Segoe UI Variable Display"
                                FontWeight="SemiBold"
-                               FontSize="16"
-                               CharacterSpacing="100"/>
-                    <TextBlock Text="Please wait"
+                               FontSize="15"
+                               CharacterSpacing="50"/>
+                    <TextBlock Text="Do not close the application"
                                HorizontalAlignment="Center"
                                Foreground="{StaticResource BrandMutedBrush}"
                                FontFamily="Segoe UI Variable Text"
-                               FontSize="12"/>
+                               FontSize="12"
+                               Opacity="0.7"/>
                 </StackPanel>
 
             </StackPanel>

@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using YxllowLoader.Models;
 
@@ -53,6 +54,7 @@ namespace YxllowLoader
             CardExpiry.Text = _session.ExpiryDisplay;
             CardDaysLeft.Text = _session.DaysLeft;
             CardHwid.Text = _session.HwidStatus;
+            HwidStatusText.Text = _session.HwidStatus;
 
             if (_session.IsExpired)
             {
@@ -64,6 +66,8 @@ namespace YxllowLoader
             {
                 HwidDot.Fill = Application.Current.Resources["BrandDangerBrush"] as Brush;
                 CardHwid.Foreground = Application.Current.Resources["BrandDangerBrush"] as Brush;
+                HwidStatusText.Foreground = Application.Current.Resources["BrandDangerBrush"] as Brush;
+                HwidPillBg.Color = Windows.UI.Color.FromArgb(0x1A, 0xEF, 0x44, 0x44);
             }
         }
 
@@ -151,6 +155,8 @@ namespace YxllowLoader
             }
         }
 
+        private CancellationTokenSource _codeAnimCts;
+
         private void SetInjectLoading(bool loading, string statusText = "")
         {
             InjectBtnContent.Visibility = loading ? Visibility.Collapsed : Visibility.Visible;
@@ -164,13 +170,94 @@ namespace YxllowLoader
                 if (!string.IsNullOrEmpty(statusText))
                     OverlayStatus.Text = statusText;
                 if (wasHidden)
-                    InjectSpinAnim.Begin();
+                {
+                    ResetCodeLines();
+                    CursorBlinkAnim.Begin();
+                    _codeAnimCts = new CancellationTokenSource();
+                    _ = RunCodeAnimationAsync(_codeAnimCts.Token);
+                }
             }
             else
             {
+                _codeAnimCts?.Cancel();
+                _codeAnimCts = null;
                 InjectOverlay.Visibility = Visibility.Collapsed;
-                InjectSpinAnim.Stop();
+                CursorBlinkAnim.Stop();
+                ResetCodeLines();
             }
+        }
+
+        private async Task RunCodeAnimationAsync(CancellationToken ct)
+        {
+            const int TypingDelayMs       = 22;   // ms between each typed character
+            const int LineCompletionPause = 120;  // ms pause after a line finishes typing
+
+            var rng = new Random();
+
+            // Fake memory addresses (randomised per injection attempt)
+            string Hex(int v) => $"0x{v:X8}";
+            int fakeHandle  = rng.Next(0x00010000, 0x0FFF0000) & ~0xF;
+            int fakeAlloc   = rng.Next(0x10000000, 0x7FFF0000) & ~0xFF;
+            int fakeThread  = rng.Next(0x00000100, 0x00FFFF00) & ~0x3;
+
+            var lines = new[]
+            {
+                $"> OpenProcess(PROCESS_ALL_ACCESS, pid)",
+                $"> handle  = {Hex(fakeHandle)}",
+                $"> VirtualAllocEx({Hex(fakeHandle)}, NULL, pathLen)",
+                $"> addr    = {Hex(fakeAlloc)}",
+                $"> WriteProcessMemory({Hex(fakeHandle)}, {Hex(fakeAlloc)}, ...)",
+                $"> bytes written: ok",
+                $"> GetProcAddress(kernel32, \"LoadLibraryA\")",
+                $"> CreateRemoteThread({Hex(fakeHandle)}, ..., LoadLibraryA)",
+                $"> thread  = {Hex(fakeThread)}",
+                $"> injection complete.",
+            };
+
+            var slots = new[] { CodeLine1, CodeLine2, CodeLine3, CodeLine4, CodeLine5 };
+
+            // Type the "current" prompt line character by character, then
+            // move it into one of the history slots and advance.
+            int historyIdx = 0;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                // Remove leading "> " for the prompt — CodePrompt already shows "> "
+                string content = line.StartsWith("> ") ? line[2..] : line;
+
+                // Type out the current line
+                CodeCurrent.Text = "";
+                for (int ch = 0; ch < content.Length; ch++)
+                {
+                    if (ct.IsCancellationRequested) return;
+                    CodeCurrent.Text = content[..(ch + 1)];
+                    try { await Task.Delay(TypingDelayMs, ct); }
+                    catch (OperationCanceledException) { return; }
+                }
+
+                // Brief pause after finishing the line
+                try { await Task.Delay(LineCompletionPause, ct); }
+                catch (OperationCanceledException) { return; }
+
+                // Commit the completed line into the next history slot
+                slots[historyIdx % slots.Length].Text = line;
+                historyIdx++;
+                CodeCurrent.Text = "";
+
+                // Update progress bar
+                InjectProgressBar.Value = (i + 1) * 100.0 / lines.Length;
+            }
+        }
+
+        private void ResetCodeLines()
+        {
+            CodeLine1.Text = "";
+            CodeLine2.Text = "";
+            CodeLine3.Text = "";
+            CodeLine4.Text = "";
+            CodeLine5.Text = "";
+            CodeCurrent.Text = "";
+            InjectProgressBar.Value = 0;
         }
 
         // ── DLL Injection (LoadLibrary method) ─────────────────────────
