@@ -13,7 +13,12 @@ add_executable(GigaLearnBot ${GIGALEARNBOT_FILES_SRC})
 
 # Define sources for the new rlbot executable
 add_executable(rlbot "src/rlbotmain.cpp" "src/RLBotClient.cpp" "src/RLBotClient.h")
+list(REMOVE_ITEM GIGALEARNBOT_FILES_SRC
+     "${CMAKE_CURRENT_SOURCE_DIR}/src/YxllowSDKMain.cpp")
 
+add_executable(rlbot_sdk "src/YxllowSDKMain.cpp")
+set_target_properties(rlbot_sdk PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+target_link_libraries(rlbot_sdk GigaLearnCPP)
 
 # Set C++ version to 20 for GigaLearnBot
 set_target_properties(GigaLearnBot PROPERTIES LINKER_LANGUAGE CXX)
