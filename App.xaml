@@ -34,7 +34,7 @@
             <!-- TextBox Style -->
             <Style x:Key="YxllowTextBoxStyle" TargetType="TextBox">
                 <Setter Property="Background"            Value="{StaticResource BrandSurface2Brush}"/>
-                <Setter Property="Foreground"            Value="{StaticResource BrandTextBrush}"/>
+                <Setter Property="Foreground"            Value="{StaticResource BrandMutedBrush}"/>
                 <Setter Property="BorderBrush"           Value="{StaticResource BrandBorderBrush}"/>
                 <Setter Property="BorderThickness"       Value="1"/>
                 <Setter Property="CornerRadius"          Value="6"/>
@@ -47,14 +47,15 @@
             <!-- PasswordBox Style -->
             <Style x:Key="YxllowPasswordBoxStyle" TargetType="PasswordBox">
                 <Setter Property="Background"            Value="{StaticResource BrandSurface2Brush}"/>
-                <Setter Property="Foreground"            Value="{StaticResource BrandTextBrush}"/>
+                <Setter Property="Foreground"            Value="{StaticResource BrandMutedBrush}"/>
                 <Setter Property="BorderBrush"           Value="{StaticResource BrandBorderBrush}"/>
                 <Setter Property="BorderThickness"       Value="1"/>
                 <Setter Property="CornerRadius"          Value="6"/>
                 <Setter Property="Padding"               Value="12,10"/>
                 <Setter Property="FontFamily"            Value="Segoe UI Variable Text"/>
                 <Setter Property="FontSize"              Value="13"/>
-                <Setter Property="PasswordRevealMode"    Value="Peek"/>
+                <Setter Property="PlaceholderForeground" Value="{StaticResource BrandMutedBrush}"/>
+                <Setter Property="PasswordRevealMode"    Value="Hidden"/>
             </Style>
 
             <!-- Primary Button Style -->
