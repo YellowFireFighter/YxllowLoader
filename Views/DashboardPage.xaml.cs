@@ -1,8 +1,11 @@
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
+using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -233,6 +236,75 @@ namespace YxllowLoader
         private void LogoutBtn_Click(object sender, RoutedEventArgs e)
         {
             MainWindow.RootFrame.Navigate(typeof(LoginPage));
+        }
+
+        // ── Hover animations ────────────────────────────────────────────
+
+        private void StatCard_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is Border card && card.RenderTransform is CompositeTransform tf)
+                AnimateScale(tf, 1.0, 1.05, 160);
+        }
+
+        private void StatCard_PointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is Border card && card.RenderTransform is CompositeTransform tf)
+                AnimateScale(tf, 1.05, 1.0, 200);
+        }
+
+        private void InjectBtn_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement el && el.RenderTransform is CompositeTransform tf)
+                AnimateScale(tf, 1.0, 1.04, 130);
+        }
+
+        private void InjectBtn_PointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement el && el.RenderTransform is CompositeTransform tf)
+                AnimateScale(tf, 1.04, 1.0, 180);
+        }
+
+        private void TabBtn_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement el && el.RenderTransform is CompositeTransform tf)
+                AnimateScale(tf, 1.0, 1.06, 120);
+        }
+
+        private void TabBtn_PointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement el && el.RenderTransform is CompositeTransform tf)
+                AnimateScale(tf, 1.06, 1.0, 160);
+        }
+
+        private void LogoutBtn_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement el && el.RenderTransform is CompositeTransform tf)
+                AnimateScale(tf, 1.0, 1.07, 130);
+        }
+
+        private void LogoutBtn_PointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement el && el.RenderTransform is CompositeTransform tf)
+                AnimateScale(tf, 1.07, 1.0, 180);
+        }
+
+        private static void AnimateScale(CompositeTransform tf, double from, double to, int durationMs)
+        {
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            var dur  = new Duration(TimeSpan.FromMilliseconds(durationMs));
+
+            var sx = new DoubleAnimation { From = from, To = to, Duration = dur, EasingFunction = ease };
+            Storyboard.SetTarget(sx, tf);
+            Storyboard.SetTargetProperty(sx, "ScaleX");
+
+            var sy = new DoubleAnimation { From = from, To = to, Duration = dur, EasingFunction = ease };
+            Storyboard.SetTarget(sy, tf);
+            Storyboard.SetTargetProperty(sy, "ScaleY");
+
+            var sb = new Storyboard();
+            sb.Children.Add(sx);
+            sb.Children.Add(sy);
+            sb.Begin();
         }
     }
 }

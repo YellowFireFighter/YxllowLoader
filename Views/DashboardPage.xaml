@@ -6,16 +6,37 @@
     Loaded="Page_Loaded">
 
     <Page.Resources>
-        <!-- Inject overlay spinning animation -->
+        <!-- Inject overlay animation: three rings + pulsing center -->
         <Storyboard x:Name="InjectSpinAnim" RepeatBehavior="Forever">
-            <DoubleAnimation Storyboard.TargetName="OuterSquareRotate"
+            <!-- Outer ring: slow clockwise, 3 s -->
+            <DoubleAnimation Storyboard.TargetName="Ring1Rotate"
                              Storyboard.TargetProperty="Angle"
                              From="0" To="360"
-                             Duration="0:0:1.5"/>
-            <DoubleAnimation Storyboard.TargetName="InnerSquareRotate"
+                             Duration="0:0:3"/>
+            <!-- Middle ring: medium counter-clockwise, 2 s -->
+            <DoubleAnimation Storyboard.TargetName="Ring2Rotate"
                              Storyboard.TargetProperty="Angle"
                              From="0" To="-360"
-                             Duration="0:0:1.0"/>
+                             Duration="0:0:2"/>
+            <!-- Inner filled square: pulse scale, 0.9 s auto-reverse -->
+            <DoubleAnimation Storyboard.TargetName="Ring3Pulse"
+                             Storyboard.TargetProperty="ScaleX"
+                             From="0.75" To="1.0"
+                             Duration="0:0:0.9"
+                             AutoReverse="True">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="Ring3Pulse"
+                             Storyboard.TargetProperty="ScaleY"
+                             From="0.75" To="1.0"
+                             Duration="0:0:0.9"
+                             AutoReverse="True">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
         </Storyboard>
 
         <!-- Opening animation: fade in + gentle scale up -->
@@ -104,8 +125,7 @@
                                        FontFamily="Segoe UI Variable Display"
                                        FontWeight="Bold"
                                        FontSize="42">
-                                <Run Text="yxllow" Foreground="{StaticResource BrandYellowBrush}"/>
-                                <Run Text=".tech" Foreground="{StaticResource BrandMutedBrush}" FontSize="28"/>
+                                <Run Text="yxllow" Foreground="{StaticResource BrandYellowBrush}"/><Run Text=".tech" Foreground="{StaticResource BrandMutedBrush}" FontSize="28"/>
                             </TextBlock>
                         </StackPanel>
 
@@ -115,7 +135,13 @@
                                 Width="260"
                                 Height="56"
                                 HorizontalAlignment="Center"
+                                RenderTransformOrigin="0.5,0.5"
+                                PointerEntered="InjectBtn_PointerEntered"
+                                PointerExited="InjectBtn_PointerExited"
                                 Click="InjectBtn_Click">
+                            <Button.RenderTransform>
+                                <CompositeTransform/>
+                            </Button.RenderTransform>
                             <Grid>
                                 <StackPanel x:Name="InjectBtnContent"
                                             Orientation="Horizontal"
@@ -225,7 +251,13 @@
                                     BorderBrush="{StaticResource BrandBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="10"
-                                    Padding="20,16">
+                                    Padding="20,16"
+                                    RenderTransformOrigin="0.5,0.5"
+                                    PointerEntered="StatCard_PointerEntered"
+                                    PointerExited="StatCard_PointerExited">
+                                <Border.RenderTransform>
+                                    <CompositeTransform/>
+                                </Border.RenderTransform>
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="PLAN"
                                                Foreground="{StaticResource BrandMutedBrush}"
@@ -248,7 +280,13 @@
                                     BorderBrush="{StaticResource BrandBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="10"
-                                    Padding="20,16">
+                                    Padding="20,16"
+                                    RenderTransformOrigin="0.5,0.5"
+                                    PointerEntered="StatCard_PointerEntered"
+                                    PointerExited="StatCard_PointerExited">
+                                <Border.RenderTransform>
+                                    <CompositeTransform/>
+                                </Border.RenderTransform>
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="EXPIRES"
                                                Foreground="{StaticResource BrandMutedBrush}"
@@ -271,7 +309,13 @@
                                     BorderBrush="{StaticResource BrandBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="10"
-                                    Padding="20,16">
+                                    Padding="20,16"
+                                    RenderTransformOrigin="0.5,0.5"
+                                    PointerEntered="StatCard_PointerEntered"
+                                    PointerExited="StatCard_PointerExited">
+                                <Border.RenderTransform>
+                                    <CompositeTransform/>
+                                </Border.RenderTransform>
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="DAYS LEFT"
                                                Foreground="{StaticResource BrandMutedBrush}"
@@ -294,7 +338,13 @@
                                     BorderBrush="{StaticResource BrandBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="10"
-                                    Padding="20,16">
+                                    Padding="20,16"
+                                    RenderTransformOrigin="0.5,0.5"
+                                    PointerEntered="StatCard_PointerEntered"
+                                    PointerExited="StatCard_PointerExited">
+                                <Border.RenderTransform>
+                                    <CompositeTransform/>
+                                </Border.RenderTransform>
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="HWID"
                                                Foreground="{StaticResource BrandMutedBrush}"
@@ -360,7 +410,13 @@
                                 Background="#1AFFC300"
                                 BorderThickness="0"
                                 CornerRadius="7"
-                                Padding="20,8">
+                                Padding="20,8"
+                                RenderTransformOrigin="0.5,0.5"
+                                PointerEntered="TabBtn_PointerEntered"
+                                PointerExited="TabBtn_PointerExited">
+                            <Button.RenderTransform>
+                                <CompositeTransform/>
+                            </Button.RenderTransform>
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE756;" FontSize="13"
                                           Foreground="{StaticResource BrandYellowBrush}"/>
@@ -381,7 +437,13 @@
                                 Background="Transparent"
                                 BorderThickness="0"
                                 CornerRadius="7"
-                                Padding="20,8">
+                                Padding="20,8"
+                                RenderTransformOrigin="0.5,0.5"
+                                PointerEntered="TabBtn_PointerEntered"
+                                PointerExited="TabBtn_PointerExited">
+                            <Button.RenderTransform>
+                                <CompositeTransform/>
+                            </Button.RenderTransform>
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE77B;" FontSize="13"
                                           Foreground="{StaticResource BrandMutedBrush}"/>
@@ -398,19 +460,35 @@
 
                     </StackPanel>
 
-                    <!-- Right: logout icon button -->
-                    <Button Grid.Column="2"
-                            Background="#EF4444"
-                            BorderThickness="0"
-                            CornerRadius="6"
-                            Padding="12,7"
+                    <!-- Right: logout button -->
+                    <Button x:Name="LogoutBtn"
+                            Grid.Column="2"
+                            Background="Transparent"
+                            BorderBrush="#44EF4444"
+                            BorderThickness="1"
+                            CornerRadius="7"
+                            Padding="14,9"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center"
+                            RenderTransformOrigin="0.5,0.5"
+                            PointerEntered="LogoutBtn_PointerEntered"
+                            PointerExited="LogoutBtn_PointerExited"
                             Click="LogoutBtn_Click">
-                        <!-- &#xE7E8; = Segoe MDL2 SignOut / exit icon -->
-                        <FontIcon Glyph="&#xE7E8;"
-                                  FontSize="14"
-                                  Foreground="White"/>
+                        <Button.RenderTransform>
+                            <CompositeTransform/>
+                        </Button.RenderTransform>
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <FontIcon Glyph="&#xE7E8;"
+                                      FontSize="12"
+                                      Foreground="#EF4444"/>
+                            <TextBlock Text="LOG OUT"
+                                       Foreground="#EF4444"
+                                       FontFamily="Segoe UI Variable Display"
+                                       FontWeight="SemiBold"
+                                       FontSize="11"
+                                       CharacterSpacing="100"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
                     </Button>
                 </Grid>
             </Border>
@@ -425,34 +503,64 @@
                         VerticalAlignment="Center"
                         Spacing="28">
 
-                <!-- Spinning squares animation -->
-                <Grid Width="88" Height="88" HorizontalAlignment="Center">
-                    <!-- Outer rotating square -->
-                    <Border Width="88" Height="88"
+                <!-- Modern three-ring spinner -->
+                <Grid Width="120" Height="120" HorizontalAlignment="Center">
+
+                    <!-- Outer ring with rotation indicator stripe -->
+                    <Border Width="112" Height="112"
                             BorderBrush="{StaticResource BrandYellowBrush}"
-                            BorderThickness="2"
-                            CornerRadius="5"
+                            BorderThickness="2.5"
+                            CornerRadius="14"
                             RenderTransformOrigin="0.5,0.5">
                         <Border.RenderTransform>
-                            <RotateTransform x:Name="OuterSquareRotate"/>
+                            <RotateTransform x:Name="Ring1Rotate"/>
                         </Border.RenderTransform>
+                        <!-- Indicator stripe so rotation is visible -->
+                        <Border Width="22" Height="3"
+                                Background="{StaticResource BrandYellowBrush}"
+                                CornerRadius="1.5"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Top"
+                                Margin="0,3,0,0"/>
                     </Border>
-                    <!-- Inner rotating square (opposite direction) -->
-                    <Border Width="50" Height="50"
+
+                    <!-- Middle ring -->
+                    <Border Width="74" Height="74"
                             BorderBrush="{StaticResource BrandYellowBrush}"
                             BorderThickness="2"
-                            CornerRadius="3"
+                            CornerRadius="9"
+                            Opacity="0.7"
                             RenderTransformOrigin="0.5,0.5"
-                            Opacity="0.65"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center">
                         <Border.RenderTransform>
-                            <RotateTransform x:Name="InnerSquareRotate"/>
+                            <RotateTransform x:Name="Ring2Rotate"/>
+                        </Border.RenderTransform>
+                        <Border Width="14" Height="2.5"
+                                Background="{StaticResource BrandYellowBrush}"
+                                CornerRadius="1.25"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Top"
+                                Margin="0,2,0,0"/>
+                    </Border>
+
+                    <!-- Inner pulsing filled square -->
+                    <Border Width="36" Height="36"
+                            Background="{StaticResource BrandYellowBrush}"
+                            CornerRadius="6"
+                            Opacity="0.95"
+                            RenderTransformOrigin="0.5,0.5"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                        <Border.RenderTransform>
+                            <CompositeTransform x:Name="Ring3Pulse"/>
                         </Border.RenderTransform>
                     </Border>
+
                     <!-- Center bright dot -->
-                    <Ellipse Width="10" Height="10"
-                             Fill="{StaticResource BrandYellowBrush}"
+                    <Ellipse Width="8" Height="8"
+                             Fill="White"
+                             Opacity="0.9"
                              HorizontalAlignment="Center"
                              VerticalAlignment="Center"/>
                 </Grid>
