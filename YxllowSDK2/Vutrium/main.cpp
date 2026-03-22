@@ -1010,13 +1010,28 @@ static std::string ConstructGameStateJSON() {
     j += "},";
 
     // ── Cars ──────────────────────────────────────────────────────────
+    // Identify the local player's car so the bot client knows whose obs to build.
+    uintptr_t localCarAddress = 0;
+    {
+        auto localControllers = ge.GetLocalPlayers(pm);
+        if (!localControllers.empty()) {
+            SDK::ACar lc = localControllers[0].GetCar(pm);
+            if (lc.IsValid()) localCarAddress = lc.Address;
+        }
+    }
+
     j += "\"cars\":[";
     auto cars = ge.GetCars(pm);
-    bool firstCar = true;
+    int  localCarIndex = 0;
+    int  carIdx        = 0;
+    bool firstCar      = true;
     for (auto& car : cars) {
-        if (!car.IsValid()) continue;
+        if (!car.IsValid()) { ++carIdx; continue; }
         if (!firstCar) j += ",";
         firstCar = false;
+
+        if (localCarAddress != 0 && car.Address == localCarAddress)
+            localCarIndex = carIdx;
 
         SDK::UBoostComponent boostComp = car.GetBoostComponent(pm);
         float boostAmount = boostComp.IsValid() ? boostComp.GetAmount(pm) : 0.0f;
@@ -1028,17 +1043,38 @@ static std::string ConstructGameStateJSON() {
             if (tn) teamNum = *tn;
         }
 
-        //j += "{";
-        //j += "\"pos\":"        + vec3(car.GetLocation(pm))           + ",";
-        //j += "\"vel\":"        + vec3(car.GetVelocity(pm))           + ",";
-        //j += "\"ang_vel\":"    + vec3(car.GetAngularVelocity(pm))    + ",";
-        //j += "\"rot\":"        + rot3(car.GetRotation(pm))           + ",";
-        //j += "\"boost\":"      + flt(boostAmount / 100.0f)           + ",";
-        //j += "\"on_ground\":"  + std::string(car.IsOnGround(pm) ? "true" : "false") + ",";
-        //j += "\"supersonic\":" + std::string(car.IsSupersonic(pm) ? "true" : "false") + ",";
-        //j += "\"jumped\":"     + std::string(car.IsJumped(pm) ? "true" : "false")    + ",";
-        //j += "\"team\":"       + std::to_string(teamNum);
-        //j += "}";
+        j += "{";
+        j += "\"pos\":"           + vec3(car.GetLocation(pm))                                      + ",";
+        j += "\"vel\":"           + vec3(car.GetVelocity(pm))                                      + ",";
+        j += "\"ang_vel\":"       + vec3(car.GetAngularVelocity(pm))                               + ",";
+        j += "\"rot\":"           + rot3(car.GetRotation(pm))                                      + ",";
+        j += "\"boost\":"         + flt(boostAmount / 100.0f)                                      + ",";
+        j += "\"on_ground\":"     + std::string(car.IsOnGround(pm)     ? "true" : "false")         + ",";
+        j += "\"supersonic\":"    + std::string(car.IsSupersonic(pm)   ? "true" : "false")         + ",";
+        j += "\"jumped\":"        + std::string(car.IsJumped(pm)       ? "true" : "false")         + ",";
+        j += "\"double_jumped\":" + std::string(car.IsDoubleJumped(pm) ? "true" : "false")         + ",";
+        j += "\"demoed\":false,";
+        j += "\"team\":"          + std::to_string(teamNum);
+        j += "}";
+        ++carIdx;
+    }
+    j += "],";
+
+    j += "\"local_car_index\":" + std::to_string(localCarIndex) + ",";
+
+    // ── Boost pads ────────────────────────────────────────────────────
+    j += "\"boost_pads\":[";
+    for (int i = 0; i < (int)g_FieldState.BoostPads.size(); i++) {
+        if (i > 0) j += ",";
+        j += g_FieldState.BoostPads[i].IsActive ? "true" : "false";
+    }
+    j += "],";
+
+    j += "\"boost_pad_timers\":[";
+    for (int i = 0; i < (int)g_FieldState.BoostPads.size(); i++) {
+        if (i > 0) j += ",";
+        auto rem = g_FieldState.BoostPads[i].GetRemainingSeconds();
+        j += flt(rem.has_value() ? rem.value() : 0.0f);
     }
     j += "],";
 
