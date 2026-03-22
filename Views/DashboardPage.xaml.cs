@@ -167,7 +167,7 @@ namespace YxllowLoader
             SetInjectLoading(true, "Injecting SDK...");
 
             // Capture a local Action so the background thread can post log lines to the UI.
-            var logLines = new System.Collections.Concurrent.ConcurrentQueue<(string msg, bool err)>();
+            var logLines = new ConcurrentQueue<(string msg, bool err)>();
             bool success = await Task.Run(() => InjectInternal(procs[0].Id, (msg, err) => logLines.Enqueue((msg, err))));
 
             // Flush all queued log lines onto the UI thread.

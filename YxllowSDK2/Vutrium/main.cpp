@@ -964,6 +964,10 @@ unsigned __stdcall EjectThread(void* pArg) {
 
 // ── rlgym bot server helpers ────────────────────────────────────────────
 
+// Hardcoded PRI field offset for team number (valid for current RL build).
+// Update this when the game is patched and offsets shift.
+static constexpr uintptr_t PRI_TEAM_OFFSET = 0x02C0;
+
 // Build a JSON string with the full current game state for rlgym.
 // Returns an empty string when the SDK is not initialized or there is no
 // active game event.
@@ -1019,8 +1023,8 @@ static std::string ConstructGameStateJSON() {
         SDK::APRI pri = car.GetPRI(pm);
         uint8_t teamNum = 0;
         if (pri.IsValid()) {
-            // Team number: read directly from PRI
-            auto tn = pm.Read<uint8_t>(pri.Address + 0x02C0); // offset may vary
+            // Team number: read directly from PRI using build-specific offset.
+            auto tn = pm.Read<uint8_t>(pri.Address + PRI_TEAM_OFFSET);
             if (tn) teamNum = *tn;
         }
 
@@ -1064,7 +1068,13 @@ static void ParseAndStoreBotAction(const std::string& json) {
             size_t pos = json.find("\"" + key + "\":");
             if (pos == std::string::npos) return false;
             pos += key.size() + 3;
-            return json.substr(pos, 1) != "0" && json.substr(pos, 4) != "fals";
+            // Skip any whitespace after the colon.
+            while (pos < json.size() && json[pos] == ' ') ++pos;
+            // Match the JSON literal "true" or a non-zero number.
+            if (pos + 4 <= json.size() && json.substr(pos, 4) == "true") return true;
+            if (pos + 5 <= json.size() && json.substr(pos, 5) == "false") return false;
+            // Numeric: 0 = false, anything else = true.
+            return pos < json.size() && json[pos] != '0';
         };
 
         std::lock_guard<std::mutex> lock(g_BotActionMutex);
@@ -1077,8 +1087,11 @@ static void ParseAndStoreBotAction(const std::string& json) {
         g_BotAction.Boost         = getBool("boost");
         g_BotAction.Handbrake     = getBool("handbrake");
         g_BotAction.HasNewAction  = true;
+    } catch (const std::exception& e) {
+        Logger::Warning("BotServer: Failed to parse action JSON (" + std::string(e.what()) +
+                        "): " + json.substr(0, 256));
     } catch (...) {
-        Logger::Warning("BotServer: Failed to parse action JSON: " + json.substr(0, 128));
+        Logger::Warning("BotServer: Failed to parse action JSON (unknown error): " + json.substr(0, 256));
     }
 }
 
@@ -1167,11 +1180,11 @@ unsigned __stdcall BotServerThread(void* /*pArg*/) {
                 if (msg == "get_obs") {
                     std::string state = ConstructGameStateJSON();
                     if (state.empty()) state = "{\"error\":\"sdk_not_ready\"}\n";
+                    // state always ends with \n (either from ConstructGameStateJSON or the fallback).
                     ::send(g_BotClientSocket, state.c_str(), static_cast<int>(state.size()), 0);
                 } else if (msg.rfind("set_action:", 0) == 0) {
                     ParseAndStoreBotAction(msg.substr(11));
-                    const char* ack = "ok\n";
-                    ::send(g_BotClientSocket, ack, 3, 0);
+                    ::send(g_BotClientSocket, "ok\n", 3, 0);
                 } else {
                     Logger::Warning("BotServer: Unknown message: " + msg.substr(0, 64));
                     const char* err = "{\"error\":\"unknown_command\"}\n";
@@ -2797,9 +2810,9 @@ bool InitializeSDKAndHooks() {
 				inputs.Roll     = action.Roll;
 
 				uint32_t combined = 0;
-				if (action.Handbrake) combined |= (1u << 0);
-				if (action.Jump)      combined |= (1u << 1);
-				if (action.Boost)     combined |= (1u << 2) | (1u << 3);
+				if (action.Handbrake) combined |= (1u << 0); // bit 0: handbrake
+				if (action.Jump)      combined |= (1u << 1); // bit 1: jump
+				if (action.Boost)     combined |= (1u << 2) | (1u << 3); // bit 2: boost pressed, bit 3: boost held
 				inputs.CombinedInput = combined;
 
 				// Write directly to the car's replicated inputs.
