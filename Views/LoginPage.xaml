@@ -41,12 +41,20 @@
 
                 <!-- Logo -->
                 <StackPanel HorizontalAlignment="Center" Margin="0,0,0,32">
-                    <TextBlock HorizontalAlignment="Center"
-                               FontFamily="Segoe UI Variable Display"
-                               FontWeight="Bold"
-                               FontSize="34">
-                        <Run Text="yxllow" Foreground="{StaticResource BrandYellowBrush}"/><Run Text=".tech" Foreground="{StaticResource BrandMutedBrush}" FontSize="24"/>
-                    </TextBlock>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="yxllow"
+                                   Foreground="{StaticResource BrandYellowBrush}"
+                                   FontFamily="Segoe UI Variable Display"
+                                   FontWeight="Bold"
+                                   FontSize="34"
+                                   VerticalAlignment="Bottom"/>
+                        <TextBlock Text=".tech"
+                                   Foreground="{StaticResource BrandMutedBrush}"
+                                   FontFamily="Segoe UI Variable Display"
+                                   FontWeight="Bold"
+                                   FontSize="24"
+                                   VerticalAlignment="Bottom"/>
+                    </StackPanel>
                     <TextBlock Text="SDK LOADER"
                                HorizontalAlignment="Center"
                                Foreground="{StaticResource BrandMutedBrush}"
@@ -70,7 +78,7 @@
                                    CharacterSpacing="150"/>
                         <TextBox x:Name="UsernameBox"
                                  Style="{StaticResource YxllowTextBoxStyle}"
-                                 PlaceholderText="username"
+                                 PlaceholderText="Username"
                                  Height="42"/>
                     </StackPanel>
 
@@ -82,10 +90,24 @@
                                    FontWeight="SemiBold"
                                    FontSize="10"
                                    CharacterSpacing="150"/>
-                        <PasswordBox x:Name="PasswordBox"
-                                     Style="{StaticResource YxllowPasswordBoxStyle}"
-                                     PlaceholderText="password"
-                                     Height="42"/>
+                        <Grid Height="42">
+                            <PasswordBox x:Name="PasswordBox"
+                                         Style="{StaticResource YxllowPasswordBoxStyle}"
+                                         PlaceholderText="Password"/>
+                            <Button x:Name="PasswordRevealBtn"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,8,0"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="6,4"
+                                    Click="PasswordRevealBtn_Click">
+                                <FontIcon x:Name="PasswordRevealIcon"
+                                          Glyph="&#xE7B3;"
+                                          FontSize="14"
+                                          Foreground="{StaticResource BrandMutedBrush}"/>
+                            </Button>
+                        </Grid>
                     </StackPanel>
 
                     <!-- Error Message -->

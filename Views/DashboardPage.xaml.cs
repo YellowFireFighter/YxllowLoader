@@ -126,7 +126,13 @@ namespace YxllowLoader
             if (procs.Length == 0)
             {
                 SetInjectLoading(true, "Simulating injection...");
-                await Task.Delay(1200);
+                // Wait for the full code animation to complete all lines
+                if (_codeAnimTask != null)
+                {
+                    // Await the animation task; OperationCanceledException is expected if
+                    // SetInjectLoading(false) is called before the animation finishes.
+                    try { await _codeAnimTask; } catch (OperationCanceledException) { }
+                }
                 SetInjectLoading(false, "");
 
                 StatusLabel.Text = "Rocket League not found. Launch the game first.";
@@ -156,6 +162,7 @@ namespace YxllowLoader
         }
 
         private CancellationTokenSource _codeAnimCts;
+        private Task _codeAnimTask;
 
         private void SetInjectLoading(bool loading, string statusText = "")
         {
@@ -174,7 +181,7 @@ namespace YxllowLoader
                     ResetCodeLines();
                     CursorBlinkAnim.Begin();
                     _codeAnimCts = new CancellationTokenSource();
-                    _ = RunCodeAnimationAsync(_codeAnimCts.Token);
+                    _codeAnimTask = RunCodeAnimationAsync(_codeAnimCts.Token);
                 }
             }
             else

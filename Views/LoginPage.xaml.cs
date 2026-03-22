@@ -55,7 +55,19 @@ namespace YxllowLoader
             LoginBtn.IsEnabled = !loading;
             UsernameBox.IsEnabled = !loading;
             PasswordBox.IsEnabled = !loading;
+            PasswordRevealBtn.IsEnabled = !loading;
             ErrorText.Visibility = Visibility.Collapsed;
+        }
+
+        private bool _isPasswordRevealed = false;
+
+        private void PasswordRevealBtn_Click(object sender, RoutedEventArgs e)
+        {
+            _isPasswordRevealed = !_isPasswordRevealed;
+            PasswordBox.PasswordRevealMode = _isPasswordRevealed
+                ? PasswordRevealMode.Visible
+                : PasswordRevealMode.Hidden;
+            PasswordRevealIcon.Glyph = _isPasswordRevealed ? "\uED1A" : "\uE7B3";
         }
 
         // Stub — replace with your actual auth logic (HTTP call to your API, etc.)

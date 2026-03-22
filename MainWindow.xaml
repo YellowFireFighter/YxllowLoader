@@ -46,12 +46,31 @@
 
             <StackPanel HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Spacing="28">
+                        Spacing="20">
 
-                <!-- Pixel canvas — pixels added from code-behind -->
-                <Canvas x:Name="PixelCanvas"
-                        Width="112" Height="112"
-                        HorizontalAlignment="Center"/>
+                <!-- Brand logo -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="yxllow"
+                               Foreground="{StaticResource BrandYellowBrush}"
+                               FontFamily="Segoe UI Variable Display"
+                               FontWeight="Bold"
+                               FontSize="28"/>
+                    <TextBlock Text=".tech"
+                               Foreground="{StaticResource BrandMutedBrush}"
+                               FontFamily="Segoe UI Variable Display"
+                               FontWeight="Bold"
+                               FontSize="28"/>
+                </StackPanel>
+
+                <!-- Loading bar -->
+                <ProgressBar x:Name="SplashProgressBar"
+                             Width="240"
+                             Height="3"
+                             Minimum="0"
+                             Maximum="100"
+                             Value="0"
+                             Foreground="{StaticResource BrandYellowBrush}"
+                             Background="#1A1A1A"/>
 
                 <!-- Loading label -->
                 <TextBlock Text="LOADING"
