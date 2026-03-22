@@ -7,7 +7,6 @@
 #include <psapi.h>       // For GetModuleFileNameEx, GetModuleInformation
 #include <algorithm>     // For std::transform, std::max
 #include <vector>
-#include <map>
 #include <sstream>       // Needed for Logger::to_hex
 
 namespace FunctionName {
@@ -34,91 +33,7 @@ namespace ClassName {
 // ADDED: Static global to store the main viewport client address
 uintptr_t g_GameViewportClientAddress = 0;
 
-namespace {
 
-    // Define patterns (ensure these are correct for your target)
-    const std::map<std::string, std::vector<uint8_t>> SCAN_PATTERNS = {
-        {"GNames_1",   {0x75, 0x05, 0xE8, 0x00, 0x00, 0x00, 0x00, 0x85, 0xDB, 0x75, 0x31}},
-        {"GObjects_1", {0xE8, 0x00, 0x00, 0x00, 0x00, 0x8B, 0x5D, 0xBF, 0x48}},
-        {"GNames_2",   {0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00}},
-        {"GObjects_2", {0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00}},
-    };
-
-    std::optional<uintptr_t> PatternScan(const MemoryManager& pm, uintptr_t begin, size_t size, const std::vector<uint8_t>& pattern, const std::string& patternName = "Unknown")
-    {
-        if (pattern.empty() || size == 0 || size < pattern.size()) return std::nullopt;
-        // Logger::Info("RLSDK Scan: Searching for " + patternName + "..."); // Logging removed
-
-        std::vector<uint8_t> buffer;
-        try { buffer.resize(size); }
-        catch (const std::bad_alloc&) {
-            Logger::Error("RLSDK Scan Error: Failed to allocate buffer of size " + std::to_string(size) + " for pattern " + patternName);
-            return std::nullopt;
-        }
-
-        if (!pm.ReadBytes(begin, buffer.data(), size)) {
-            Logger::Error("RLSDK Scan Error: Failed to read memory for pattern " + patternName);
-            return std::nullopt;
-        }
-
-        for (size_t i = 0; i <= size - pattern.size(); ++i) {
-            bool found = true;
-            for (size_t j = 0; j < pattern.size(); ++j) {
-                if (pattern[j] != 0x00 && pattern[j] != buffer[i + j]) {
-                    found = false;
-                    break;
-                }
-            }
-            if (found) {
-                uintptr_t foundAddress = begin + i;
-                // Logger::Info("RLSDK Scan: Found " + patternName + " at " + Logger::to_hex(foundAddress)); // Logging removed
-                return foundAddress;
-            }
-        }
-        Logger::Warning("RLSDK Scan Warning: Pattern " + patternName + " not found.");
-        return std::nullopt;
-    }
-
-    // Calculate address based on Method 1 (relative calls and offsets)
-    std::optional<uintptr_t> CalculateMethod1(const MemoryManager& pm, uintptr_t patternAddr, bool isGNames) {
-        try {
-            uintptr_t step1_offset_addr = patternAddr + (isGNames ? 3 : 1);
-            auto relOffset1Opt = pm.Read<int32_t>(step1_offset_addr);
-            if (!relOffset1Opt) { /* Logger::Warning(...); */ return std::nullopt; } // Logging removed
-            uintptr_t afterCall1 = step1_offset_addr + sizeof(int32_t);
-            uintptr_t intermediateAddr = afterCall1 + *relOffset1Opt;
-            intermediateAddr += (isGNames ? 0x27 : 0x65); // Apply specific hardcoded adjustments
-            uintptr_t step2_offset_addr = intermediateAddr + 3;
-            auto relOffset2Opt = pm.Read<int32_t>(step2_offset_addr);
-            if (!relOffset2Opt) { /* Logger::Warning(...); */ return std::nullopt; } // Logging removed
-            uintptr_t afterLeaOffset = step2_offset_addr + sizeof(int32_t);
-            uintptr_t finalAddr = afterLeaOffset + *relOffset2Opt;
-            return finalAddr;
-        }
-        catch (const std::exception& e) {
-            Logger::Error("Scan Calc1 Exception for " + std::string(isGNames ? "GNames" : "GObjects") + ": " + e.what());
-            return std::nullopt;
-        }
-        // return std::nullopt; // Unreachable
-    }
-
-    // Calculate address based on Method 2 (simple RIP relative - matches Python GNames_2/GObjects_2)
-    std::optional<uintptr_t> CalculateMethod2(const MemoryManager& pm, uintptr_t patternAddr) {
-        try {
-            uintptr_t offset_addr = patternAddr + 3; // Offset is 3 bytes into the pattern
-            auto relOffsetOpt = pm.Read<int32_t>(offset_addr);
-            if (!relOffsetOpt) { /* Logger::Warning(...); */ return std::nullopt; } // Logging removed
-            uintptr_t instruction_end = patternAddr + 7; // Instruction is 7 bytes long (e.g., 48 8B 05 XX XX XX XX)
-            uintptr_t finalAddr = instruction_end + *relOffsetOpt; // RIP-relative calculation
-            return finalAddr;
-        }
-        catch (const std::exception& e) {
-            Logger::Error("Scan Calc2 Exception: " + std::string(e.what()));
-            return std::nullopt;
-        }
-    }
-
-} // end anonymous namespace
 
 
 
@@ -137,8 +52,7 @@ RLSDK::RLSDK(const std::wstring& processName, bool hookPlayerTick)
 {
     Logger::Info("RLSDK: Initializing...");
     try {
-        // 1. Attach to Process
-        Logger::Info("RLSDK: Attaching to process: " + std::string(moduleName_.begin(), moduleName_.end()));
+        Logger::Info("RLSDK: [Step 1/7] Attaching to process: " + std::string(moduleName_.begin(), moduleName_.end()));
         if (!memManager_.Attach(moduleName_)) {
             throw std::runtime_error("Failed to attach to process: " + std::string(moduleName_.begin(), moduleName_.end()));
         }
@@ -165,36 +79,37 @@ RLSDK::RLSDK(const std::wstring& processName, bool hookPlayerTick)
             ", Scan Size: " + Logger::to_hex(moduleInfo.SizeOfImage));
 
         // 2. Detect Build Type
+        Logger::Info("RLSDK: [Step 2/7] Detecting build type (steam/epic)...");
         buildType_ = DetectBuildType();
         Logger::Info("RLSDK: Detected build type: " + buildType_);
 
-        // 3. Determine Offsets (Always resolve now)
-        Logger::Info("RLSDK: Resolving offsets via pattern scanning...");
-        if (!ResolveOffsets(moduleInfo.SizeOfImage)) { // Call the overloaded ResolveOffsets
-            throw std::runtime_error("Failed to resolve required GNames/GObjects offsets via pattern scanning.");
+        // 3. Determine Offsets (hardcoded â€“ no pattern scanning needed)
+        Logger::Info("RLSDK: [Step 3/7] Resolving hardcoded GNames / GObjects offsets...");
+        if (!ResolveOffsets(moduleInfo.SizeOfImage)) {
+            throw std::runtime_error("Failed to resolve GNames/GObjects offsets.");
         }
         if (gnamesOffset_ == 0 || gobjectsOffset_ == 0) {
             throw std::runtime_error("Resolved GNames/GObjects offsets are invalid (zero).");
         }
 
         // 4. Initialize GNameTable
-        Logger::Info("RLSDK: Initializing GNameTable...");
+        Logger::Info("RLSDK: [Step 4/7] Initializing GNameTable at offset " + Logger::to_hex(gnamesOffset_) + "...");
         if (!gnames_.Initialize(memManager_, moduleBase_, gnamesOffset_)) {
             throw std::runtime_error("Failed to initialize GNameTable.");
         }
-        Logger::Info("RLSDK: GNameTable Initialized. Loaded " + std::to_string(gnames_.GetNameCount()) + " names.");
+        Logger::Info("RLSDK: [Step 4/7] GNameTable OK â€“ loaded " + std::to_string(gnames_.GetNameCount()) + " names.");
 
         // 5. Initialize GObjectsTable
-        Logger::Info("RLSDK: Initializing GObjectsTable...");
+        Logger::Info("RLSDK: [Step 5/7] Initializing GObjectsTable at offset " + Logger::to_hex(gobjectsOffset_) + "...");
         if (!gobjects_.Initialize(memManager_, gnames_, moduleBase_, gobjectsOffset_)) {
             throw std::runtime_error("Failed to initialize GObjectsTable.");
         }
-        Logger::Info("RLSDK: GObjectsTable Initialized. Mapped "
+        Logger::Info("RLSDK: [Step 5/7] GObjectsTable OK â€“ mapped "
             + std::to_string(gobjects_.GetMappedClassCount()) + " classes, "
             + std::to_string(gobjects_.GetMappedFunctionCount()) + " functions.");
 
-        // --- ADDED: Find the main UGameViewportClient instance ---
-        Logger::Info("RLSDK: Searching for main UGameViewportClient instance...");
+        // --- Find the main UGameViewportClient instance ---
+        Logger::Info("RLSDK: [Step 5b] Searching GObjects for main UGameViewportClient instance...");
         int32_t objectCount = gobjects_.GetObjectCount(memManager_);
         bool foundViewport = false;
         for (int32_t i = 0; i < objectCount; ++i) {
@@ -220,13 +135,13 @@ RLSDK::RLSDK(const std::wstring& processName, bool hookPlayerTick)
         // --- END Find UGameViewportClient ---
 
         // 6. Initialize HookManager (MinHook)
-        Logger::Info("RLSDK: Initializing HookManager...");
+        Logger::Info("RLSDK: [Step 6/7] Initializing HookManager (MinHook)...");
         if (!hookMgr_.Initialize()) {
             throw std::runtime_error("Failed to initialize HookManager (MinHook)."); // Specific error logged inside
         }
 
         // 7. Setup Hooks
-        Logger::Info("RLSDK: Setting up hooks...");
+        Logger::Info("RLSDK: [Step 7/7] Setting up ProcessEvent hooks...");
         if (!SetupHooks()) {
             Logger::Warning("Failed to set up one or more function hooks.");
         }
@@ -401,12 +316,12 @@ RLSDK::RLSDK(const std::wstring& processName, bool hookPlayerTick)
 uintptr_t RLSDK::FindLiveBallAddress() {
     int32_t count = gobjects_.GetObjectCount(memManager_);
 
-    // Scan backwards — live instances are at higher indices than CDOs
+    // Scan backwards ï¿½ live instances are at higher indices than CDOs
     for (int32_t i = count - 1; i >= 0; --i) {
         SDK::UObject obj = gobjects_.GetObjectByIndex(memManager_, i);
         if (!obj.IsValid()) continue;
 
-        // Skip CDOs — they live in module address range
+        // Skip CDOs ï¿½ they live in module address range
         if (obj.Address >= moduleBase_ && obj.Address < moduleBase_ + 0x10000000)
             continue;
 
@@ -429,7 +344,7 @@ uintptr_t RLSDK::FindLiveBallAddress() {
 SDK::ABall RLSDK::GetBall() {
     if (!initialized_) return SDK::ABall(0);
 
-    // Valid cache — verify it's still good
+    // Valid cache ï¿½ verify it's still good
     if (cachedBallAddress_ != 0) {
         float x = memManager_.Read<float>(cachedBallAddress_ + 0x90).value_or(0.f);
         float y = memManager_.Read<float>(cachedBallAddress_ + 0x94).value_or(0.f);
@@ -557,89 +472,22 @@ std::string RLSDK::DetectBuildType() {
     else { Logger::Warning("Could not determine build type from path '" + std::string(processPathRaw) + "'. Assuming 'epic'."); return "epic"; }
 }
 
-bool RLSDK::ResolveOffsets(size_t moduleSize) {
-    std::optional<uintptr_t> gnamesAddrOpt;
-    std::optional<uintptr_t> gobjectsAddrOpt;
+bool RLSDK::ResolveOffsets(size_t /*moduleSize*/) {
+    // GNames and GObjects addresses are hardcoded relative to module base.
+    // These offsets were determined for the current Rocket League build.
+    constexpr uintptr_t GNAMES_OFFSET   = 0x21CC7F0;
+    constexpr uintptr_t GOBJECTS_OFFSET = 0x2401690;
 
-    Logger::Info("RLSDK Resolve: Trying offset method 1...");
-    auto gnamesPattern1Opt = PatternScan(memManager_, moduleBase_, moduleSize, SCAN_PATTERNS.at("GNames_1"), "GNames_1");
-    if (gnamesPattern1Opt) {
-        gnamesAddrOpt = CalculateMethod1(memManager_, *gnamesPattern1Opt, true);
-        if (gnamesAddrOpt) Logger::Info("Found GNames via Method 1 at: " + Logger::to_hex(*gnamesAddrOpt));
-    }
+    Logger::Info("RLSDK Resolve: Using hardcoded offsets:");
+    Logger::Info("  GNames   offset: " + Logger::to_hex(GNAMES_OFFSET) +
+                 " -> abs: " + Logger::to_hex(moduleBase_ + GNAMES_OFFSET));
+    Logger::Info("  GObjects offset: " + Logger::to_hex(GOBJECTS_OFFSET) +
+                 " -> abs: " + Logger::to_hex(moduleBase_ + GOBJECTS_OFFSET));
 
-    auto gobjectsPattern1Opt = PatternScan(memManager_, moduleBase_, moduleSize, SCAN_PATTERNS.at("GObjects_1"), "GObjects_1");
-    if (gobjectsPattern1Opt) {
-        gobjectsAddrOpt = CalculateMethod1(memManager_, *gobjectsPattern1Opt, false);
-        if (gobjectsAddrOpt) Logger::Info("Found GObjects via Method 1 at: " + Logger::to_hex(*gobjectsAddrOpt));
-    }
+    gnamesOffset_  = GNAMES_OFFSET;
+    gobjectsOffset_ = GOBJECTS_OFFSET;
 
-    // --- Try Alternative Method 2 (Matches Python GNames_2/GObjects_2) --- 
-    if (!gnamesAddrOpt) {
-        Logger::Info("RLSDK Resolve: GNames Method 1 failed, trying Method 2 (GNames_2)...");
-        auto gnamesPattern2Opt = PatternScan(memManager_, moduleBase_, moduleSize, SCAN_PATTERNS.at("GNames_2"), "GNames_2");
-        if (gnamesPattern2Opt) {
-            gnamesAddrOpt = CalculateMethod2(memManager_, *gnamesPattern2Opt);
-            if (gnamesAddrOpt) Logger::Info("Found GNames via Method 2 at: " + Logger::to_hex(*gnamesAddrOpt));
-        }
-    }
-
-    if (!gobjectsAddrOpt) {
-        Logger::Info("RLSDK Resolve: GObjects Method 1 failed, trying Method 2 (GObjects_2)...");
-        auto gobjectsPattern2Opt = PatternScan(memManager_, moduleBase_, moduleSize, SCAN_PATTERNS.at("GObjects_2"), "GObjects_2");
-        if (gobjectsPattern2Opt) {
-            gobjectsAddrOpt = CalculateMethod2(memManager_, *gobjectsPattern2Opt);
-             if (gobjectsAddrOpt) Logger::Info("Found GObjects via Method 2 at: " + Logger::to_hex(*gobjectsAddrOpt));
-        }
-    }
-    // Add more alternative methods here if needed, like GObjects_3
-
-    Logger::Info("RLSDK Resolve: Using hardcoded offsets...");
-
-    gnamesAddrOpt = moduleBase_ + 0x21CC7F0;
-    gobjectsAddrOpt = moduleBase_ + 0x2401690;
-
-    Logger::Info("GNames   at: " + Logger::to_hex(*gnamesAddrOpt));
-    Logger::Info("GObjects at: " + Logger::to_hex(*gobjectsAddrOpt));
-
-    // --- Final Check and Adjustment --- 
-    if (!gnamesAddrOpt || !gobjectsAddrOpt) {
-        Logger::Error("RLSDK Resolve Error: Failed to find both GNames and GObjects addresses via any method.");
-        return false;
-    }
-
-    uintptr_t gnamesAddr = *gnamesAddrOpt;
-    uintptr_t gobjectsAddr = *gobjectsAddrOpt;
-
-    Logger::Info("RLSDK Resolve: Found absolute addresses: GNames=" + Logger::to_hex(gnamesAddr) +
-        ", GObjects=" + Logger::to_hex(gobjectsAddr));
-
-    // Perform the 0x48 difference check and adjustment (like Python)
-    constexpr uintptr_t EXPECTED_DIFF = 0x48;
-    uintptr_t currentDiff = (gobjectsAddr > gnamesAddr) ? (gobjectsAddr - gnamesAddr) : (gnamesAddr - gobjectsAddr);
-
-    if (currentDiff != EXPECTED_DIFF) {
-        Logger::Warning("RLSDK Resolve: Offset difference is " + Logger::to_hex(currentDiff) +
-            ", expected " + Logger::to_hex(EXPECTED_DIFF) + ". Adjusting GNames based on GObjects.");
-        if (gobjectsAddr > EXPECTED_DIFF) {
-            gnamesAddr = gobjectsAddr - EXPECTED_DIFF;
-            Logger::Info("RLSDK Resolve: Adjusted GNames absolute address: " + Logger::to_hex(gnamesAddr));
-        }
-        else {
-            Logger::Error("RLSDK Resolve Error: Cannot adjust GNames, GObjects address too low (" + Logger::to_hex(gobjectsAddr) + ").");
-            return false;
-        }
-    }
-
-    if (gnamesAddr < moduleBase_ || gobjectsAddr < moduleBase_) {
-        Logger::Error("RLSDK Resolve Error: Calculated absolute addresses lower than module base.");
-        return false;
-    }
-    gnamesOffset_ = gnamesAddr - moduleBase_;
-    gobjectsOffset_ = gobjectsAddr - moduleBase_;
-
-    Logger::Info("RLSDK Resolve: Successfully resolved relative offsets: GNames=" + Logger::to_hex(gnamesOffset_) +
-        ", GObjects=" + Logger::to_hex(gobjectsOffset_));
+    Logger::Info("RLSDK Resolve: Offsets set successfully.");
     return true;
 }
 
