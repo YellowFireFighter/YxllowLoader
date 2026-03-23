@@ -48,19 +48,17 @@ RLGC::FList RLGC::AdvancedObs::BuildObs(const Player& player, const GameState& s
 	}
 
 	AddPlayerToObs(obs, player, inv, ball);
-	FList teammates = {}, opponents = {};
 
-	for (auto& otherPlayer : state.players) {
-		if (otherPlayer.carId == player.carId)
-			continue;
+	// Always add exactly one opponent (29 floats) so obs size stays at 109
+	// regardless of player count (solo free-play, 1v1, 2v2, etc.)
+	const Player* opp = nullptr;
+	for (auto& otherPlayer : state.players)
+		if (otherPlayer.carId != player.carId && otherPlayer.team != player.team) { opp = &otherPlayer; break; }
 
-		AddPlayerToObs(
-			(otherPlayer.team == player.team) ? teammates : opponents,
-			otherPlayer, inv, ball
-		);
+	if (opp) {
+		AddPlayerToObs(obs, *opp, inv, ball);
+	} else {
+		for (int i = 0; i < 29; i++) obs += 0.f;
 	}
-
-	obs += teammates;
-	obs += opponents;
 	return obs;
 }
